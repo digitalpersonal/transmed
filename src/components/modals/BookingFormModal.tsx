@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Calendar, User, ShieldCheck, MapPin, Clock, AlertTriangle, Check, Ticket, Search } from 'lucide-react';
 import { DestinationHospital, Patient, Trip, TripPassenger, Vehicle, ensurePassengerArray } from '../../types';
 import { formatCPF, formatDateBR, formatPhone, formatPlate, formatSUS, generateBookingCode } from '../../utils/formatters';
@@ -30,6 +30,17 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   const [selectedPatientId, setSelectedPatientId] = useState<string>(preselectedPatientId || '');
   const [patientSearch, setPatientSearch] = useState<string>('');
   
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus search input when trip is preselected or selected
+  useEffect(() => {
+    if (selectedTripId && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [selectedTripId]);
+
   const [companionIncluded, setCompanionIncluded] = useState<boolean>(false);
   const [companionName, setCompanionName] = useState<string>('');
   const [companionCpf, setCompanionCpf] = useState<string>('');
@@ -180,82 +191,112 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 text-slate-800 max-h-[80vh] overflow-y-auto space-y-4 text-xs">
-          {/* Passo 1: Selecionar Viagem */}
-          <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/60">
-            <h4 className="font-bold text-slate-800 text-sm mb-2.5 flex items-center justify-between border-b border-slate-200 pb-2">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-emerald-700" />
-                1. Seleção da Viagem / Rota
-              </span>
-              {selectedTrip && (
-                <span className="text-xs font-mono font-bold text-slate-700 bg-white px-2 py-0.5 rounded border">
-                  {selectedTrip.code}
+          {/* Informações da Viagem Pré-selecionada (Exibe se vier de um atalho de viagem) */}
+          {preselectedTripId && selectedTrip && selectedVehicle ? (
+            <div className="bg-emerald-900 text-white rounded-xl p-4 shadow-md border border-emerald-850 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-emerald-300 text-[10px] font-extrabold tracking-wider uppercase block">
+                  VIAGEM DE DESTINO SELECIONADA
                 </span>
-              )}
-            </h4>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Selecione a Viagem Programada *</label>
-              <select
-                value={selectedTripId}
-                onChange={(e) => setSelectedTripId(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg bg-white text-slate-900 font-medium focus:outline-emerald-600 ${
-                  errors.trip ? 'border-rose-500' : 'border-slate-300'
-                }`}
-              >
-                <option value="">Selecione uma viagem da lista...</option>
-                {availableTrips.map((t) => {
-                  const veh = vehicles.find((v) => v.id === t.vehicleId);
-                  const occupied = ensurePassengerArray(t.passengers).reduce((acc, p) => acc + 1 + (p.companionIncluded ? 1 : 0), 0);
-                  const maxCap = veh?.maxCapacity || 0;
-                  const free = maxCap - occupied;
-                  return (
-                    <option key={t.id} value={t.id}>
-                      {formatDateBR(t.departureDate)} às {t.departureTime} → {t.destinationCity} | Veículo: {veh?.model} ({free} vagas livres de {maxCap})
-                    </option>
-                  );
-                })}
-              </select>
-              {errors.trip && <p className="text-rose-500 text-[11px] mt-0.5">{errors.trip}</p>}
+                <h4 className="text-base font-black tracking-tight text-white mt-0.5">
+                  {selectedTrip.destinationCity} (TFD)
+                </h4>
+                <p className="text-emerald-100 text-[11px] mt-0.5">
+                  Saída: <strong>{formatDateBR(selectedTrip.departureDate)}</strong> às <strong>{selectedTrip.departureTime}</strong> • {selectedTrip.departureLocation}
+                </p>
+                <p className="text-emerald-200/80 text-[10px] mt-1 font-medium">
+                  Motorista: {selectedTrip.driverName} ({selectedTrip.driverPhone})
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <div className="bg-emerald-850 px-3 py-2 rounded-lg border border-emerald-800 text-[11px]">
+                  <span className="text-emerald-300 block text-[9px] uppercase font-bold">Veículo / Placa</span>
+                  <strong>{selectedVehicle.model}</strong> <span className="font-mono text-emerald-200">({formatPlate(selectedVehicle.plate)})</span>
+                </div>
+                <div className="bg-emerald-850 px-3 py-2 rounded-lg border border-emerald-800 text-[11px]">
+                  <span className="text-emerald-300 block text-[9px] uppercase font-bold">Lotação</span>
+                  <strong>{currentOccupiedSeats} / {maxCapacity}</strong> <span className="text-emerald-200">({seatsRemaining} livres)</span>
+                </div>
+              </div>
             </div>
-
-            {/* Painel de Lotação em Tempo Real */}
-            {selectedTrip && selectedVehicle && (
-              <div className="mt-3 p-3 bg-white rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <span className="text-slate-500 text-[11px]">Veículo / Placa:</span>
-                  <p className="font-bold text-slate-900">{selectedVehicle.model} ({formatPlate(selectedVehicle.plate)})</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[11px]">Motorista:</span>
-                  <p className="font-bold text-slate-900">{selectedTrip.driverName}</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[11px]">Ocupação Atual:</span>
-                  <p className="font-bold text-slate-900">
-                    {currentOccupiedSeats} / {maxCapacity} assentos ocupados
-                  </p>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[11px]">Vagas Restantes:</span>
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full font-bold text-xs ${
-                    seatsRemaining > 3 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
-                  }`}>
-                    {seatsRemaining > 0 ? `${seatsRemaining} vagas livres` : 'LOTADO'}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {isOverbooking && (
-              <div className="mt-2.5 p-2.5 bg-rose-50 border border-rose-300 rounded-lg flex items-center gap-2 text-rose-800 text-xs">
-                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                <span>
-                  <strong>Atenção:</strong> Este agendamento requer {seatsNeeded} vaga(s), mas o veículo possui apenas {seatsRemaining} vaga(s) disponível(is).
+          ) : (
+            /* Passo 1: Selecionar Viagem (Exibe se for agendamento geral sem viagem prévia) */
+            <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/60">
+              <h4 className="font-bold text-slate-800 text-sm mb-2.5 flex items-center justify-between border-b border-slate-200 pb-2">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-emerald-700" />
+                  1. Seleção da Viagem / Rota
                 </span>
+                {selectedTrip && (
+                  <span className="text-xs font-mono font-bold text-slate-700 bg-white px-2 py-0.5 rounded border">
+                    {selectedTrip.code}
+                  </span>
+                )}
+              </h4>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Selecione a Viagem Programada *</label>
+                <select
+                  value={selectedTripId}
+                  onChange={(e) => setSelectedTripId(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg bg-white text-slate-900 font-medium focus:outline-emerald-600 ${
+                    errors.trip ? 'border-rose-500' : 'border-slate-300'
+                  }`}
+                >
+                  <option value="">Selecione uma viagem da lista...</option>
+                  {availableTrips.map((t) => {
+                    const veh = vehicles.find((v) => v.id === t.vehicleId);
+                    const occupied = ensurePassengerArray(t.passengers).reduce((acc, p) => acc + 1 + (p.companionIncluded ? 1 : 0), 0);
+                    const maxCap = veh?.maxCapacity || 0;
+                    const free = maxCap - occupied;
+                    return (
+                      <option key={t.id} value={t.id}>
+                        {formatDateBR(t.departureDate)} às {t.departureTime} → {t.destinationCity} | Veículo: {veh?.model} ({free} vagas livres de {maxCap})
+                      </option>
+                    );
+                  })}
+                </select>
+                {errors.trip && <p className="text-rose-500 text-[11px] mt-0.5">{errors.trip}</p>}
               </div>
-            )}
-          </div>
+
+              {/* Painel de Lotação em Tempo Real */}
+              {selectedTrip && selectedVehicle && (
+                <div className="mt-3 p-3 bg-white rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="text-slate-500 text-[11px]">Veículo / Placa:</span>
+                    <p className="font-bold text-slate-900">{selectedVehicle.model} ({formatPlate(selectedVehicle.plate)})</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 text-[11px]">Motorista:</span>
+                    <p className="font-bold text-slate-900">{selectedTrip.driverName}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 text-[11px]">Ocupação Atual:</span>
+                    <p className="font-bold text-slate-900">
+                      {currentOccupiedSeats} / {maxCapacity} assentos ocupados
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 text-[11px]">Vagas Restantes:</span>
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full font-bold text-xs ${
+                      seatsRemaining > 3 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
+                    }`}>
+                      {seatsRemaining > 0 ? `${seatsRemaining} vagas livres` : 'LOTADO'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isOverbooking && (
+            <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-lg flex items-center gap-2 text-rose-800 text-xs">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>
+                <strong>Atenção:</strong> Este agendamento requer {seatsNeeded} vaga(s), mas o veículo possui apenas {seatsRemaining} vaga(s) disponível(is).
+              </span>
+            </div>
+          )}
 
           {/* Passo 2: Selecionar Paciente */}
           <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/60">
@@ -280,6 +321,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
+                  ref={searchInputRef}
                   type="text"
                   placeholder="Filtrar paciente por nome, CPF ou Cartão SUS..."
                   value={patientSearch}

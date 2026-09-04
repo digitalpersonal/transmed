@@ -81,12 +81,7 @@ export function subscribeToPatients(callback: (patients: Patient[]) => void) {
     const colRef = collection(db, 'patients');
     return onSnapshot(colRef, (snapshot) => {
       if (snapshot.empty) {
-        // Seed if empty
-        const initial = getStoredPatients();
-        initial.forEach(p => {
-          setDoc(doc(db, 'patients', p.id), sanitizeForFirestore(p)).catch(() => {});
-        });
-        callback(initial);
+        callback(getStoredPatients());
       } else {
         const list = snapshot.docs.map(doc => doc.data() as Patient);
         callback(list);
@@ -122,17 +117,8 @@ export function subscribeToVehicles(callback: (vehicles: Vehicle[]) => void) {
   try {
     const colRef = collection(db, 'vehicles');
     return onSnapshot(colRef, (snapshot) => {
-      if (snapshot.empty || snapshot.docs.length < INITIAL_VEHICLES.length) {
-        // Sync full initial vehicles list to Firestore
-        INITIAL_VEHICLES.forEach(v => {
-          setDoc(doc(db, 'vehicles', v.id), sanitizeForFirestore(v), { merge: true }).catch(() => {});
-        });
-        const firestoreList = snapshot.docs.map(doc => doc.data() as Vehicle);
-        const existingIds = new Set(firestoreList.map(v => v.id));
-        const missingFromInitial = INITIAL_VEHICLES.filter(v => !existingIds.has(v.id));
-        const merged = [...firestoreList, ...missingFromInitial];
-        saveVehicles(merged);
-        callback(merged);
+      if (snapshot.empty) {
+        callback(getStoredVehicles());
       } else {
         const list = snapshot.docs.map(doc => doc.data() as Vehicle);
         saveVehicles(list);
@@ -168,17 +154,8 @@ export function subscribeToDrivers(callback: (drivers: Driver[]) => void) {
   try {
     const colRef = collection(db, 'drivers');
     return onSnapshot(colRef, (snapshot) => {
-      if (snapshot.empty || snapshot.docs.length < INITIAL_DRIVERS.length) {
-        // Sync full initial drivers list to Firestore
-        INITIAL_DRIVERS.forEach(d => {
-          setDoc(doc(db, 'drivers', d.id), sanitizeForFirestore(d), { merge: true }).catch(() => {});
-        });
-        const firestoreList = snapshot.docs.map(doc => doc.data() as Driver);
-        const existingIds = new Set(firestoreList.map(d => d.id));
-        const missingFromInitial = INITIAL_DRIVERS.filter(d => !existingIds.has(d.id));
-        const merged = [...firestoreList, ...missingFromInitial];
-        saveDrivers(merged);
-        callback(merged);
+      if (snapshot.empty) {
+        callback(getStoredDrivers());
       } else {
         const list = snapshot.docs.map(doc => doc.data() as Driver);
         saveDrivers(list);
@@ -215,11 +192,7 @@ export function subscribeToDestinations(callback: (destinations: DestinationHosp
     const colRef = collection(db, 'destinations');
     return onSnapshot(colRef, (snapshot) => {
       if (snapshot.empty) {
-        const initial = getStoredDestinations();
-        initial.forEach(d => {
-          setDoc(doc(db, 'destinations', d.id), sanitizeForFirestore(d)).catch(() => {});
-        });
-        callback(initial);
+        callback(getStoredDestinations());
       } else {
         const list = snapshot.docs.map(doc => doc.data() as DestinationHospital);
         callback(list);
@@ -248,13 +221,7 @@ export function subscribeToTrips(callback: (trips: Trip[]) => void) {
     return onSnapshot(colRef, (snapshot) => {
       const deletedIds = getDeletedTripIds();
       if (snapshot.empty) {
-        const initial = getStoredTrips().filter(t => !deletedIds.includes(t.id));
-        initial.forEach(t => {
-          if (!deletedIds.includes(t.id)) {
-            setDoc(doc(db, 'trips', t.id), sanitizeForFirestore(t)).catch(() => {});
-          }
-        });
-        callback(initial);
+        callback(getStoredTrips().filter(t => !deletedIds.includes(t.id)));
       } else {
         const list = snapshot.docs
           .map(doc => {
@@ -302,9 +269,7 @@ export function subscribeToConfig(callback: (config: MunicipalConfig) => void) {
     const docRef = doc(db, 'config', 'municipal');
     return onSnapshot(docRef, (snapshot) => {
       if (!snapshot.exists()) {
-        const initial = getStoredConfig();
-        setDoc(docRef, sanitizeForFirestore(initial)).catch(() => {});
-        callback(initial);
+        callback(getStoredConfig());
       } else {
         callback(snapshot.data() as MunicipalConfig);
       }
@@ -331,15 +296,13 @@ export function subscribeToUsers(callback: (users: SystemUser[]) => void) {
     const colRef = collection(db, 'users');
     return onSnapshot(colRef, (snapshot) => {
       if (snapshot.empty) {
-        const defaultAdmin: SystemUser = {
+        callback([{
           id: 'admin-digitalpersonal',
           email: 'digitalpersonal@gmail.com',
           name: 'Administrador TFD',
           role: 'admin',
           createdAt: new Date().toISOString(),
-        };
-        setDoc(doc(db, 'users', defaultAdmin.id), sanitizeForFirestore(defaultAdmin)).catch(() => {});
-        callback([defaultAdmin]);
+        }]);
       } else {
         const list = snapshot.docs.map(doc => doc.data() as SystemUser);
         callback(list);

@@ -3,6 +3,9 @@ import { X, UserCheck, Lock, Mail, UserPlus, Shield, Trash2, LogOut, CheckCircle
 import { SystemUser } from '../../types';
 import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, User } from '../../lib/firebase';
 import { subscribeToUsers, upsertUserFirestore, deleteUserFirestore } from '../../lib/firestoreSync';
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword as createSecondaryUser, signOut as signSecondaryOut } from 'firebase/auth';
+import firebaseConfig from '../../../firebase-applet-config.json';
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -26,6 +29,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<'admin' | 'operator'>('operator');
   const [newPassword, setNewPassword] = useState('');
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -79,8 +83,18 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     }
 
     try {
-      // Create in Firebase Auth
-      await createUserWithEmailAndPassword(auth, newEmail.trim(), newPassword);
+      // Use a secondary Firebase Auth instance so the logged-in admin is not signed out
+      const apps = getApps();
+      let secondaryApp = apps.find(a => a.name === 'SecondaryAdminCreator');
+      if (!secondaryApp) {
+        secondaryApp = initializeApp(firebaseConfig, 'SecondaryAdminCreator');
+      }
+      const secondaryAuth = getSecondaryAuth(secondaryApp);
+      
+      // Create user in secondary auth
+      await createSecondaryUser(secondaryAuth, newEmail.trim(), newPassword);
+      await signSecondaryOut(secondaryAuth);
+
       // Save in Firestore
       const newUser: SystemUser = {
         id: `usr-${Date.now()}`,
@@ -97,13 +111,6 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     } catch (err: any) {
       console.error(err);
       showToast(`Erro ao criar usuário: ${err.message}`, 'error');
-    }
-  };
-
-  const handleDeleteUser = async (userRecord: SystemUser) => {
-    if (confirm(`Deseja remover o acesso de ${userRecord.name}?`)) {
-      await deleteUserFirestore(userRecord.id);
-      showToast('Usuário removido.', 'info');
     }
   };
 
@@ -299,15 +306,37 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                               {usr.role === 'admin' ? 'Administrador' : 'Operador'}
                             </span>
                           </td>
-                          <td className="py-2.5 px-3 text-right">
+                           <td className="py-2.5 px-3 text-right">
                             {usr.email !== 'digitalpersonal@gmail.com' && (
-                              <button
-                                onClick={() => handleDeleteUser(usr)}
-                                className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
-                                title="Remover usuário"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              deletingUserId === usr.id ? (
+                                <div className="flex items-center gap-1.5 justify-end animate-in fade-in slide-in-from-right-2 duration-150">
+                                  <span className="text-[10px] text-rose-600 font-bold">Excluir?</span>
+                                  <button
+                                    onClick={async () => {
+                                      await deleteUserFirestore(usr.id);
+                                      showToast('Usuário removido.', 'info');
+                                      setDeletingUserId(null);
+                                    }}
+                                    className="px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded text-[10px] cursor-pointer"
+                                  >
+                                    Sim
+                                  </button>
+                                  <button
+                                    onClick={() => setDeletingUserId(null)}
+                                    className="px-2 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded text-[10px] cursor-pointer"
+                                  >
+                                    Não
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setDeletingUserId(usr.id)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
+                                  title="Remover usuário"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )
                             )}
                           </td>
                         </tr>

@@ -14,7 +14,8 @@ import {
   Truck,
   UserCircle2,
   MapPin,
-  FileText
+  FileText,
+  LogOut
 } from 'lucide-react';
 import { MunicipalConfig } from '../types';
 
@@ -30,6 +31,9 @@ interface NavbarProps {
   onOpenImportExcelModal: () => void;
   onOpenConfigModal: () => void;
   onOpenUserModal: () => void;
+  isAdmin?: boolean;
+  currentUserEmail?: string | null;
+  onLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -42,6 +46,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenImportExcelModal,
   onOpenConfigModal,
   onOpenUserModal,
+  isAdmin = false,
+  currentUserEmail,
+  onLogout,
 }) => {
   const tabs = [
     { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
@@ -104,24 +111,48 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>Novo Agendamento</span>
           </button>
 
-          <button
-            id="btn-nav-users"
-            onClick={onOpenUserModal}
-            className="p-1.5 text-emerald-400 hover:text-emerald-300 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-1 text-xs font-semibold px-2"
-            title="Administração e Gestão de Usuários"
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span className="hidden sm:inline">Admin</span>
-          </button>
+          {isAdmin && (
+            <>
+              <button
+                id="btn-nav-users"
+                onClick={onOpenUserModal}
+                className="p-1.5 text-emerald-400 hover:text-emerald-300 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-1 text-xs font-semibold px-2"
+                title="Administração e Gestão de Usuários"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
 
-          <button
-            id="btn-nav-config"
-            onClick={onOpenConfigModal}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-            title="Configurações e Backup"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+              <button
+                id="btn-nav-config"
+                onClick={onOpenConfigModal}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                title="Configurações e Backup"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </>
+          )}
+
+          {currentUserEmail && (
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
+              <div className="hidden lg:flex flex-col text-right">
+                <span className="text-[10px] font-bold text-slate-300 truncate max-w-[120px]" title={currentUserEmail}>
+                  {currentUserEmail}
+                </span>
+                <span className="text-[9px] text-emerald-400 font-semibold leading-none">
+                  {isAdmin ? 'Administrador' : 'Operador'}
+                </span>
+              </div>
+              <button
+                onClick={onLogout}
+                className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                title="Sair do sistema"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

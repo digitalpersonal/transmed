@@ -9,6 +9,7 @@ import {
   TripPassenger, 
   Vehicle,
   Driver,
+  SystemUser,
   ensurePassengerArray
 } from './types';
 import { 
@@ -43,8 +44,10 @@ import {
   subscribeToDestinations, upsertDestinationFirestore,
   subscribeToTrips, upsertTripFirestore, deleteTripFirestore,
   subscribeToConfig, updateConfigFirestore,
-  seedAllFirestore, clearTripsAndPatientsFirestore
+  seedAllFirestore, clearTripsAndPatientsFirestore,
+  subscribeToUsers
 } from './lib/firestoreSync';
+import { auth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, sendPasswordResetEmail } from './lib/firebase';
 import { Navbar, ActiveTab } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
 import { TripsView } from './components/TripsView';
@@ -77,6 +80,18 @@ import { CheckCircle2, AlertCircle } from 'lucide-react';
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
 
+  // Auth state
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [systemUsers, setSystemUsers] = useState<SystemUser[]>([]);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // Login form state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isSendingReset, setIsSendingReset] = useState(false);
+
   // Core Data State (initialized instantly from local storage for maximum performance)
   const [trips, setTrips] = useState<Trip[]>(getTrips());
   const [patients, setPatients] = useState<Patient[]>(getPatients());
@@ -94,6 +109,77 @@ export default function App() {
       setToast(null);
     }, 4500);
   };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    setLoginError(null);
+    const emailToUse = loginEmail.trim();
+    
+    try {
+      await signInWithEmailAndPassword(auth, emailToUse, loginPassword);
+      showToast('Login realizado com sucesso!', 'success');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      
+      // If the email is the default admin email, let's try to automatically create the account!
+      if (emailToUse.toLowerCase() === 'digitalpersonal@gmail.com') {
+        try {
+          await createUserWithEmailAndPassword(auth, emailToUse, loginPassword);
+          showToast('Conta administrativa criada e logada com sucesso!', 'success');
+          return;
+        } catch (createErr: any) {
+          console.error('Auto admin creation failed:', createErr);
+          if (createErr?.code === 'auth/email-already-in-use') {
+            setLoginError('Esta conta de administrador (digitalpersonal@gmail.com) já existe, mas a senha atual na nuvem é diferente de Mld3602#?+. Você precisa redefinir sua senha para acessar.');
+          } else {
+            setLoginError(`Erro ao inicializar conta: ${createErr.message || 'Verifique sua conexão ou se as credenciais de e-mail/senha estão ativadas no console do Firebase.'}`);
+          }
+          showToast('Erro de login.', 'error');
+          return;
+        }
+      }
+      
+      // For any other email
+      setLoginError('E-mail ou senha incorretos. Caso seja um operador, certifique-se de que o Administrador já cadastrou seu acesso.');
+      showToast('Erro de login.', 'error');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const emailToUse = loginEmail.trim();
+    if (!emailToUse) {
+      setLoginError('Por favor, digite seu e-mail no campo "E-mail de Acesso" antes de clicar em recuperar senha.');
+      return;
+    }
+    setIsSendingReset(true);
+    setLoginError(null);
+    try {
+      await sendPasswordResetEmail(auth, emailToUse);
+      showToast(`E-mail de redefinição enviado para ${emailToUse}! Verifique sua caixa de entrada e spam.`, 'info');
+    } catch (err: any) {
+      console.error('Password reset error:', err);
+      setLoginError(`Erro ao enviar redefinição: ${err.message || 'Verifique o e-mail digitado.'}`);
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
+
+  // Auth Subscription
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setIsAuthLoading(false);
+    });
+    const unsubUsers = subscribeToUsers(setSystemUsers);
+
+    return () => {
+      unsubAuth();
+      unsubUsers();
+    };
+  }, []);
 
   // Load from storage and Firestore on mount
   useEffect(() => {
@@ -253,7 +339,7 @@ export default function App() {
         // Filtra viagens com data anterior à data atual (ou passada como parâmetro)
         if (tripDate < todayStr) return;
 
-        const destCity = row.destino || 'Hospital de Destino';
+        const destCity = row.cidadeDestino || row.destino || 'Campinas';
         const driverName = row.motorista || 'Motorista Padrão TFD';
         const departureTime = row.horarioSaida || '06:00';
         const vehicleName = row.veiculo || '';
@@ -290,7 +376,7 @@ export default function App() {
           companionAddress: pat.companionAddress,
           companionKinship: pat.companionKinship,
           destinationId: 'dest-auto',
-          destinationName: destCity,
+          destinationName: row.destino || destCity,
           destinationCity: destCity,
           appointmentTime: row.horarioProcedimento || pat.procedureTime || '08:00',
           appointmentType: pat.condition || 'Consulta Médica',
@@ -305,7 +391,7 @@ export default function App() {
             id: newTripId,
             code: newTripCode,
             destinationCity: destCity,
-            destinationHospital: destCity,
+            destinationHospital: row.destino || destCity,
             departureDate: tripDate,
             departureTime: departureTime,
             estimatedReturnTime: '17:00',
@@ -322,8 +408,14 @@ export default function App() {
           const existingPass = ensurePassengerArray(targetTrip.passengers);
           if (!existingPass.some(p => p.patientId === pat.id)) {
             const updatedTripPassengers = [...existingPass, passengerItem];
+            
+            // Update destinationHospital if it is currently generic or matches destCity
+            const currentHospital = targetTrip.destinationHospital || targetTrip.destinationCity;
+            const updatedHospital = (currentHospital === targetTrip.destinationCity && row.destino) ? row.destino : currentHospital;
+
             targetTrip = {
               ...targetTrip,
+              destinationHospital: updatedHospital,
               passengers: updatedTripPassengers,
             };
             updatedTrips = updatedTrips.map(t => t.id === targetTrip!.id ? targetTrip! : t);
@@ -597,6 +689,142 @@ export default function App() {
     setClosureToPrint(trip);
   };
 
+  // 1. Loading screen
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-300 font-bold text-sm tracking-wide">Carregando sistema TFD & Transporte...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const userRecord = systemUsers.find(u => u.email?.toLowerCase() === currentUser?.email?.toLowerCase());
+  const isAdmin = currentUser ? (currentUser.email === 'digitalpersonal@gmail.com' || userRecord?.role === 'admin' || !userRecord) : false;
+  const isAuthorized = !!currentUser;
+
+  // 2. Login screen
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4" style={{ backgroundImage: 'radial-gradient(circle at top, #022c22 0%, #020617 100%)' }}>
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden p-8 border border-slate-200">
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center font-black text-white text-2xl tracking-wider shadow-md mb-3">
+              SUS
+            </div>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight text-center">
+              TFD & Transporte Municipal
+            </h2>
+            <p className="text-xs text-slate-500 font-medium text-center mt-1">
+              {config.municipalityName} • {config.departmentName}
+            </p>
+          </div>
+
+          {loginError && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3.5 rounded-xl text-xs mb-4 space-y-2">
+              <div><span className="font-bold">Aviso:</span> {loginError}</div>
+              {loginEmail.trim().toLowerCase() === 'digitalpersonal@gmail.com' && (
+                <div className="pt-2 border-t border-rose-200/50">
+                  <button
+                    type="button"
+                    disabled={isSendingReset}
+                    onClick={handleForgotPassword}
+                    className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-lg text-center transition-colors cursor-pointer"
+                  >
+                    {isSendingReset ? 'Enviando link...' : 'Recuperar Senha por E-mail Agora'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">E-mail de Acesso</label>
+              <input
+                type="email"
+                required
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all"
+                placeholder="usuario@saude.gov.br"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">Senha de Acesso</label>
+                <button
+                  type="button"
+                  disabled={isSendingReset}
+                  onClick={handleForgotPassword}
+                  className="text-xs text-emerald-700 hover:text-emerald-900 font-bold hover:underline bg-transparent border-none p-0 cursor-pointer"
+                >
+                  {isSendingReset ? 'Enviando link...' : 'Esqueci a senha'}
+                </button>
+              </div>
+              <input
+                type="password"
+                required
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full bg-emerald-850 hover:bg-emerald-900 text-white font-bold py-3.5 rounded-xl text-sm transition-colors shadow-lg shadow-emerald-800/10 flex items-center justify-center gap-2 cursor-pointer mt-2"
+            >
+              {isLoggingIn ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Entrando...</span>
+                </>
+              ) : (
+                <span>Entrar no Sistema</span>
+              )}
+            </button>
+          </form>
+        </div>
+        
+        {toast && (
+          <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold bg-slate-900 text-white border border-slate-800 animate-bounce">
+            {toast.message}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 3. Unauthorized screen (registered but no profile link)
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 border border-slate-200 text-center">
+          <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-xl">
+            !
+          </div>
+          <h3 className="text-lg font-black text-slate-800 mb-2">Acesso Pendente</h3>
+          <p className="text-xs text-slate-600 mb-6 leading-relaxed">
+            Sua conta (<span className="font-bold">{currentUser.email}</span>) foi autenticada, mas ainda não foi registrada como um usuário ativo no sistema pelo Administrador Geral.<br/>
+            Por favor, peça ao Administrador para registrar seu e-mail no painel de controle.
+          </p>
+          <button
+            onClick={() => signOut(auth)}
+            className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+          >
+            Voltar para o Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans">
       {/* Top Bar Navigation */}
@@ -620,6 +848,9 @@ export default function App() {
         onOpenImportExcelModal={() => setIsExcelImportModalOpen(true)}
         onOpenConfigModal={() => setIsConfigModalOpen(true)}
         onOpenUserModal={() => setIsUserModalOpen(true)}
+        isAdmin={isAdmin}
+        currentUserEmail={currentUser.email}
+        onLogout={() => signOut(auth)}
       />
 
       {/* Main Content Area */}
@@ -887,8 +1118,8 @@ export default function App() {
           patients={patients}
           vehicles={vehicles}
           destinations={destinations}
-          initialTripId={preselectedTripId}
-          initialPatientId={preselectedPatientId}
+          preselectedTripId={preselectedTripId}
+          preselectedPatientId={preselectedPatientId}
           onSaveBooking={handleSaveBooking}
           onClose={() => {
             setIsBookingModalOpen(false);

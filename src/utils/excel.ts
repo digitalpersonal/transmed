@@ -16,10 +16,11 @@ import { formatDateBR, formatCPF, formatSUS, formatPhone } from './formatters';
  * 10. CPF_ACOMPANHANTE
  * 11. ENDEREÇO_EMBARQUE_ACOMPANHANTE
  * 12. WHATSAPP_PACIENTE
- * 13. DESTINO
- * 14. VEICULO
- * 15. MOTORISTA
- * 16. HORARIO_SAIDA
+ * 13. CIDADE_DESTINO
+ * 14. DESTINO
+ * 15. VEICULO
+ * 16. MOTORISTA
+ * 17. HORARIO_SAIDA
  */
 
 export interface ExcelCapturedRow {
@@ -36,6 +37,7 @@ export interface ExcelCapturedRow {
   cpfAcompanhante: string;
   enderecoEmbarqueAcompanhante: string;
   whatsappPaciente: string;
+  cidadeDestino: string;
   destino: string;
   veiculo: string;
   motorista: string;
@@ -58,7 +60,8 @@ export function exportPatientsToExcel(patients: Patient[]): void {
     'CPF_ACOMPANHANTE': p.companionCpf ? formatCPF(p.companionCpf) : '',
     'ENDEREÇO_EMBARQUE_ACOMPANHANTE': p.companionAddress || (p.companionRequired ? (p.boardingAddress || p.address) : ''),
     'WHATSAPP_PACIENTE': formatPhone(p.whatsapp || p.phone),
-    'ENDEREÇO_DESTINO': p.condition || 'Hospital de Referência',
+    'CIDADE_DESTINO': p.city || 'Campinas',
+    'DESTINO': p.condition || 'Hospital de Referência',
     'VEICULO': '',
     'MOTORISTA': '',
     'HORARIO_SAIDA': '',
@@ -85,7 +88,8 @@ export function exportTripManifestToExcel(trip: Trip, vehicle?: Vehicle): void {
     'CPF_ACOMPANHANTE': p.companionCpf ? formatCPF(p.companionCpf) : '',
     'ENDEREÇO_EMBARQUE_ACOMPANHANTE': p.companionAddress || (p.companionIncluded ? (p.patientAddress || trip.departureLocation) : ''),
     'WHATSAPP_PACIENTE': formatPhone(p.patientWhatsapp || p.patientPhone),
-    'ENDEREÇO_DESTINO': p.destinationName || trip.destinationCity,
+    'CIDADE_DESTINO': trip.destinationCity,
+    'DESTINO': p.destinationName || trip.destinationCity,
     'VEICULO': vehicle ? `${vehicle.model} (${vehicle.plate})` : 'Veículo Escala',
     'MOTORISTA': trip.driverName,
     'HORARIO_SAIDA': trip.departureTime,
@@ -155,7 +159,8 @@ export function downloadSamplePatientTemplate(): void {
       'CPF_ACOMPANHANTE': '456.789.012-34',
       'ENDEREÇO_EMBARQUE_ACOMPANHANTE': 'Rua das Palmeiras, 145 - Jardim Alvorada',
       'WHATSAPP_PACIENTE': '(19) 99123-4567',
-      'DESTINO': 'Hospital das Clínicas Unicamp - Campinas',
+      'CIDADE_DESTINO': 'Campinas',
+      'ENDEREÇO_DESTINO': 'Hospital das Clínicas Unicamp',
       'VEICULO': 'Master Minibus (SAU-4A12)',
       'MOTORISTA': 'Carlos Eduardo Silveira',
       'HORARIO_SAIDA': '05:30',
@@ -173,7 +178,8 @@ export function downloadSamplePatientTemplate(): void {
       'CPF_ACOMPANHANTE': '',
       'ENDEREÇO_EMBARQUE_ACOMPANHANTE': '',
       'WHATSAPP_PACIENTE': '(19) 98234-5678',
-      'DESTINO': 'Centro Integrado de Hemodiálise - Campinas',
+      'CIDADE_DESTINO': 'Campinas',
+      'ENDEREÇO_DESTINO': 'Centro Integrado de Hemodiálise',
       'VEICULO': 'Master Minibus (SAU-4A12)',
       'MOTORISTA': 'Carlos Eduardo Silveira',
       'HORARIO_SAIDA': '05:30',
@@ -191,7 +197,8 @@ export function downloadSamplePatientTemplate(): void {
       'CPF_ACOMPANHANTE': '678.901.234-56',
       'ENDEREÇO_EMBARQUE_ACOMPANHANTE': 'Rua São Paulo, 310 - Parque das Flores',
       'WHATSAPP_PACIENTE': '(19) 99654-3210',
-      'DESTINO': 'AACD - São Paulo',
+      'CIDADE_DESTINO': 'São Paulo',
+      'ENDEREÇO_DESTINO': 'AACD',
       'VEICULO': 'Micro-ônibus Volare (SAU-2C90)',
       'MOTORISTA': 'Antônio José dos Santos',
       'HORARIO_SAIDA': '04:00',
@@ -421,10 +428,11 @@ export async function parseExcelCapturedRows(file: File): Promise<{
             'telefone',
             'fone'
           ], 12),
-          destino: findColIdx(['endereco_destino', 'enderecodestino', 'endereco_do_destino', 'hospital_destino', 'hospital_referencia', 'hospital', 'destino', 'clinica', 'especialidade', 'condicao'], 13),
-          veiculo: findColIdx(['veiculo', 'veicul', 'veiculo_placa', 'placa', 'frota'], 14),
-          motorista: findColIdx(['motorista', 'motor', 'nome_motorista', 'condutor'], 15),
-          horarioSaida: findColIdx(['horario_saida', 'horariosaida', 'horarios_saida', 'hora_saida', 'saida'], 16),
+          cidadeDestino: findColIdx(['cidade_destino', 'cidadedestino', 'cidade_do_destino', 'municipio_destino', 'cidade', 'municipio'], 13),
+          destino: findColIdx(['endereco_destino', 'enderecodestino', 'endereco_do_destino', 'hospital_destino', 'hospital_referencia', 'hospital', 'destino', 'clinica', 'especialidade', 'condicao'], 14),
+          veiculo: findColIdx(['veiculo', 'veicul', 'veiculo_placa', 'placa', 'frota'], 15),
+          motorista: findColIdx(['motorista', 'motor', 'nome_motorista', 'condutor'], 16),
+          horarioSaida: findColIdx(['horario_saida', 'horariosaida', 'horarios_saida', 'hora_saida', 'saida'], 17),
         };
 
         const capturedRows: ExcelCapturedRow[] = [];
@@ -554,6 +562,28 @@ export async function parseExcelCapturedRows(file: File): Promise<{
           const rawDestino = String(getCell(colIdxMap.destino) || '').trim();
           const destino = rawDestino || 'Hospital de Destino';
 
+          // 13.5 CIDADE DESTINO
+          let cidadeDestino = '';
+          if (colIdxMap.cidadeDestino !== -1) {
+            cidadeDestino = String(getCell(colIdxMap.cidadeDestino) || '').trim();
+          }
+          if (!cidadeDestino) {
+            // fallback: try to extract city from destino (e.g. "Hospital das Clínicas - Campinas" -> "Campinas")
+            if (destino.includes(' - ')) {
+              cidadeDestino = destino.split(' - ').pop() || '';
+            } else if (destino.toLowerCase().includes('campinas')) {
+              cidadeDestino = 'Campinas';
+            } else if (destino.toLowerCase().includes('sao paulo') || destino.toLowerCase().includes('são paulo')) {
+              cidadeDestino = 'São Paulo';
+            } else if (destino.toLowerCase().includes('mogi mirim')) {
+              cidadeDestino = 'Mogi Mirim';
+            } else if (destino.toLowerCase().includes('sorocaba')) {
+              cidadeDestino = 'Sorocaba';
+            } else {
+              cidadeDestino = 'Campinas'; // safe default
+            }
+          }
+
           // 14. VEICULO
           const rawVeiculo = String(getCell(colIdxMap.veiculo) || '').trim();
           const veiculo = rawVeiculo || 'Veículo Municipal';
@@ -580,6 +610,7 @@ export async function parseExcelCapturedRows(file: File): Promise<{
             cpfAcompanhante,
             enderecoEmbarqueAcompanhante,
             whatsappPaciente,
+            cidadeDestino,
             destino,
             veiculo,
             motorista,

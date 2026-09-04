@@ -35,10 +35,11 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     { num: '11', name: 'CPF_ACOMPANHANTE', desc: 'CPF do acompanhante' },
     { num: '12', name: 'ENDEREÇO_EMBARQUE_ACOMPANHANTE', desc: 'Endereço de embarque do acompanhante' },
     { num: '13', name: 'WHATSAPP_PACIENTE', desc: 'Telefone / WhatsApp com DDD' },
-    { num: '14', name: 'ENDEREÇO_DESTINO', desc: 'Hospital de referência, clínica ou endereço no município de destino' },
-    { num: '15', name: 'VEICULO', desc: 'Veículo atribuído (opcional para agendamento direto)' },
-    { num: '16', name: 'MOTORISTA', desc: 'Motorista responsável (opcional)' },
-    { num: '17', name: 'HORARIO_SAIDA', desc: 'Horário de saída da viagem' },
+    { num: '14', name: 'CIDADE_DESTINO', desc: 'Cidade de destino da viagem (ex: Campinas, São Paulo, Sorocaba)' },
+    { num: '15', name: 'ENDEREÇO_DESTINO', desc: 'Hospital de referência, clínica ou local específico de destino' },
+    { num: '16', name: 'VEICULO', desc: 'Veículo atribuído (opcional para agendamento direto)' },
+    { num: '17', name: 'MOTORISTA', desc: 'Motorista responsável (opcional)' },
+    { num: '18', name: 'HORARIO_SAIDA', desc: 'Horário de saída da viagem' },
   ];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,10 +266,11 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                           <th className="py-2.5 px-2 w-28">11. CPF Acomp.</th>
                           <th className="py-2.5 px-3 min-w-[160px]">12. End. Acomp.</th>
                           <th className="py-2.5 px-2 w-28">13. WhatsApp</th>
-                          <th className="py-2.5 px-3 min-w-[150px]">14. Destino</th>
-                          <th className="py-2.5 px-2 w-28">15. Veículo</th>
-                          <th className="py-2.5 px-2 w-28">16. Motorista</th>
-                          <th className="py-2.5 px-2 w-20">17. Hor. Saída</th>
+                          <th className="py-2.5 px-3 min-w-[120px]">14. Cidade Destino</th>
+                          <th className="py-2.5 px-3 min-w-[150px]">15. Endereço Destino</th>
+                          <th className="py-2.5 px-2 w-28">16. Veículo</th>
+                          <th className="py-2.5 px-2 w-28">17. Motorista</th>
+                          <th className="py-2.5 px-2 w-20">18. Hor. Saída</th>
                           <th className="py-2.5 px-2 text-center w-10">Ação</th>
                         </tr>
                       </thead>
@@ -299,6 +301,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                             <td className="py-2 px-2 font-mono text-slate-700">{r.cpfAcompanhante ? formatCPF(r.cpfAcompanhante) : '-'}</td>
                             <td className="py-2 px-3 text-slate-700 truncate max-w-xs">{r.enderecoEmbarqueAcompanhante || '-'}</td>
                             <td className="py-2 px-2 font-mono text-slate-700">{formatPhone(r.whatsappPaciente)}</td>
+                            <td className="py-2 px-3 font-bold text-emerald-800">{r.cidadeDestino}</td>
                             <td className="py-2 px-3 font-medium text-slate-800">{r.destino}</td>
                             <td className="py-2 px-2 text-slate-600">{r.veiculo}</td>
                             <td className="py-2 px-2 text-slate-600">{r.motorista}</td>

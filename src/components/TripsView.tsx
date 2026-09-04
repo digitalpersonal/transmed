@@ -163,8 +163,13 @@ export const TripsView: React.FC<TripsViewProps> = ({
                       </div>
 
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-base font-black text-slate-900">{trip.destinationCity}</h3>
+                          {trip.destinationHospital && trip.destinationHospital !== trip.destinationCity && (
+                            <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                              {trip.destinationHospital}
+                            </span>
+                          )}
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusBadge.bg}`}>
                             {statusBadge.label}
                           </span>
@@ -180,8 +185,14 @@ export const TripsView: React.FC<TripsViewProps> = ({
                           </span>
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                            {trip.departureLocation}
+                            Origem: {trip.departureLocation}
                           </span>
+                          {trip.destinationHospital && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                              Endereço Destino: <strong className="text-emerald-800">{trip.destinationHospital}</strong>
+                            </span>
+                          )}
                           <span>
                             Motorista: <strong className="text-slate-800">{trip.driverName}</strong> ({trip.driverPhone})
                           </span>

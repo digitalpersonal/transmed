@@ -86,7 +86,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex flex-wrap items-center gap-3 mt-4 pt-2">
             <button
               id="btn-quick-new-booking"
-              onClick={() => onOpenNewBookingModal()}
+              onClick={() => onOpenNewBookingModal(scheduledTrips[0]?.id)}
               className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-md transition-colors cursor-pointer"
             >
               <Ticket className="w-4 h-4" />
@@ -257,14 +257,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           {trip.departureTime}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-black text-slate-900 text-sm">{trip.destinationCity}</span>
+                            {trip.destinationHospital && trip.destinationHospital !== trip.destinationCity && (
+                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                                {trip.destinationHospital}
+                              </span>
+                            )}
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusBadge.bg}`}>
                               {statusBadge.label}
                             </span>
                           </div>
                           <p className="text-xs text-slate-500 mt-0.5">
                             Saída: <strong>{formatDateBR(trip.departureDate)}</strong> às <strong>{trip.departureTime}</strong> • {trip.departureLocation}
+                            {trip.destinationHospital && (
+                              <span className="block text-[11px] text-emerald-800 font-medium mt-0.5">
+                                Destino: {trip.destinationHospital}
+                              </span>
+                            )}
                           </p>
                         </div>
                       </div>
