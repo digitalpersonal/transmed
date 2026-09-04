@@ -869,7 +869,7 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="py-6 bg-slate-900 text-slate-400 text-center text-xs border-t border-slate-800 mt-auto">
+      <footer className="print:hidden py-6 bg-slate-900 text-slate-400 text-center text-xs border-t border-slate-800 mt-auto">
         <p>desenvolvido por Silvio T. de Sá Filho - Chefe do CPD 2026</p>
       </footer>
     </div>
