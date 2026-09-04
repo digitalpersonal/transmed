@@ -15,7 +15,8 @@ import {
   getStoredDrivers, saveDrivers, 
   getStoredDestinations, saveDestinations, 
   getStoredTrips, saveTrips, 
-  getStoredConfig, saveConfig 
+  getStoredConfig, saveConfig,
+  markTripAsDeleted, getDeletedTripIds
 } from '../utils/storage';
 
 /**
@@ -52,6 +53,26 @@ export async function seedAllFirestore() {
     ]);
   } catch (error) {
     console.error('Error seeding Firestore:', error);
+  }
+}
+
+export async function clearTripsAndPatientsFirestore() {
+  try {
+    const patientsSnap = await getDocs(collection(db, 'patients'));
+    const tripsSnap = await getDocs(collection(db, 'trips'));
+    
+    const deletePromises = [
+      ...patientsSnap.docs.map(d => deleteDoc(doc(db, 'patients', d.id))),
+      ...tripsSnap.docs.map(d => deleteDoc(doc(db, 'trips', d.id)))
+    ];
+    
+    await Promise.all(deletePromises);
+  } catch (error: any) {
+    console.error('Error clearing data in Firestore:', error);
+    if (error?.message?.includes('Quota') || error?.message?.includes('quota')) {
+      throw new Error('QUOTA_EXCEEDED');
+    }
+    throw error;
   }
 }
 
@@ -225,28 +246,35 @@ export function subscribeToTrips(callback: (trips: Trip[]) => void) {
   try {
     const colRef = collection(db, 'trips');
     return onSnapshot(colRef, (snapshot) => {
+      const deletedIds = getDeletedTripIds();
       if (snapshot.empty) {
-        const initial = getStoredTrips();
+        const initial = getStoredTrips().filter(t => !deletedIds.includes(t.id));
         initial.forEach(t => {
-          setDoc(doc(db, 'trips', t.id), sanitizeForFirestore(t)).catch(() => {});
+          if (!deletedIds.includes(t.id)) {
+            setDoc(doc(db, 'trips', t.id), sanitizeForFirestore(t)).catch(() => {});
+          }
         });
         callback(initial);
       } else {
-        const list = snapshot.docs.map(doc => {
-          const data = doc.data() as Trip;
-          return {
-            ...data,
-            passengers: ensurePassengerArray(data.passengers),
-          };
-        });
+        const list = snapshot.docs
+          .map(doc => {
+            const data = doc.data() as Trip;
+            return {
+              ...data,
+              passengers: ensurePassengerArray(data.passengers),
+            };
+          })
+          .filter(t => !deletedIds.includes(t.id));
         saveTrips(list);
         callback(list);
       }
     }, (error) => {
-      callback(getStoredTrips());
+      const deletedIds = getDeletedTripIds();
+      callback(getStoredTrips().filter(t => !deletedIds.includes(t.id)));
     });
   } catch (e) {
-    callback(getStoredTrips());
+    const deletedIds = getDeletedTripIds();
+    callback(getStoredTrips().filter(t => !deletedIds.includes(t.id)));
     return () => {};
   }
 }
@@ -262,6 +290,7 @@ export async function upsertTripFirestore(trip: Trip) {
 
 export async function deleteTripFirestore(tripId: string) {
   try {
+    markTripAsDeleted(tripId);
     await deleteDoc(doc(db, 'trips', tripId));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `trips/${tripId}`);

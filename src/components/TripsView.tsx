@@ -50,8 +50,9 @@ export const TripsView: React.FC<TripsViewProps> = ({
   onPrintPassengerTicket,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('open');
   const [expandedTripId, setExpandedTripId] = useState<string | null>(null);
+  const [tripToDelete, setTripToDelete] = useState<Trip | null>(null);
 
   const filteredTrips = useMemo(() => trips.filter((t) => {
     const term = searchTerm.toLowerCase().trim();
@@ -63,7 +64,11 @@ export const TripsView: React.FC<TripsViewProps> = ({
       (t.departureLocation || '').toLowerCase().includes(term) ||
       ensurePassengerArray(t.passengers).some((p) => (p.patientName || '').toLowerCase().includes(term));
 
-    const matchStatus = statusFilter === 'all' || t.status === statusFilter;
+    let matchStatus = false;
+    if (statusFilter === 'all') matchStatus = true;
+    else if (statusFilter === 'open') matchStatus = t.status === 'scheduled' || t.status === 'in_route';
+    else matchStatus = t.status === statusFilter;
+    
     return matchSearch && matchStatus;
   }), [trips, searchTerm, statusFilter]);
 
@@ -114,9 +119,10 @@ export const TripsView: React.FC<TripsViewProps> = ({
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-800 bg-white font-medium focus:outline-slate-800"
           >
+            <option value="open">Somente Viagens em Aberto</option>
             <option value="all">Todos os Status</option>
-            <option value="scheduled">Agendadas (Em Aberto)</option>
-            <option value="in_route">Em Rota</option>
+            <option value="scheduled">Apenas Agendadas</option>
+            <option value="in_route">Apenas Em Rota</option>
             <option value="completed">Concluídas / Fechadas</option>
             <option value="cancelled">Canceladas</option>
           </select>
@@ -287,11 +293,7 @@ export const TripsView: React.FC<TripsViewProps> = ({
                       </button>
 
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Tem certeza que deseja excluir a viagem ${trip.code}?`)) {
-                            onDeleteTrip(trip.id);
-                          }
-                        }}
+                        onClick={() => setTripToDelete(trip)}
                         className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors"
                         title="Excluir viagem"
                       >
@@ -431,6 +433,40 @@ export const TripsView: React.FC<TripsViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {tripToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center font-bold">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Confirmar Exclusão de Viagem</h3>
+            </div>
+            <p className="text-sm text-slate-600">
+              Tem certeza que deseja excluir a viagem <strong>{tripToDelete.code}</strong> com destino a <strong>{tripToDelete.destinationCity}</strong>? Esta ação removerá o agendamento permanentemente.
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setTripToDelete(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  onDeleteTrip(tripToDelete.id);
+                  setTripToDelete(null);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+              >
+                Sim, Excluir Viagem
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

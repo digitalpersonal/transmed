@@ -23,6 +23,7 @@ import { formatDateBR, formatCPF, formatSUS, formatPhone } from './formatters';
  */
 
 export interface ExcelCapturedRow {
+  dataViagem: string;
   horarioProcedimento: string;
   nomePaciente: string;
   dataNascimentoPaciente: string;
@@ -206,8 +207,12 @@ export function downloadSamplePatientTemplate(): void {
 /**
  * Parser inteligente de data (DD/MM/YYYY, YYYY-MM-DD, números seriais do Excel)
  */
-function parseDateValue(rawVal: string): string {
+function parseDateValue(rawVal: any): string {
   if (!rawVal) return '';
+  if (rawVal instanceof Date) {
+    if (isNaN(rawVal.getTime())) return '';
+    return rawVal.toISOString().slice(0, 10);
+  }
   try {
     const str = String(rawVal).trim();
     if (!str) return '';
@@ -242,8 +247,12 @@ function parseDateValue(rawVal: string): string {
 /**
  * Parser inteligente de horário (HH:mm ou serial do Excel)
  */
-function parseTimeValue(rawVal: string): string {
+function parseTimeValue(rawVal: any): string {
   if (!rawVal) return '08:00';
+  if (rawVal instanceof Date) {
+    if (isNaN(rawVal.getTime())) return '08:00';
+    return `${String(rawVal.getHours()).padStart(2, '0')}:${String(rawVal.getMinutes()).padStart(2, '0')}`;
+  }
   const str = String(rawVal).trim();
   if (str.includes(':')) {
     const parts = str.split(':');
@@ -332,27 +341,38 @@ export async function parseExcelCapturedRows(file: File): Promise<{
           return;
         }
 
-        // Localiza a linha do cabeçalho (procura termos como NOME, PACIENTE, HORARIO, CPF, SUS, WHATSAPP)
+        // Localiza a linha do cabeçalho (procura termos como NOME, PACIENTE, HORARIO, CPF, SUS, WHATSAPP, etc.)
         let headerRowIndex = 0;
-        for (let i = 0; i < Math.min(rawGrid.length, 10); i++) {
+        let foundHeader = false;
+        for (let i = 0; i < Math.min(rawGrid.length, 15); i++) {
           const rowStr = (rawGrid[i] || []).map((c) => String(c).toLowerCase()).join(' ');
           if (
-            (rowStr.includes('nome') && (rowStr.includes('paciente') || rowStr.includes('compl'))) ||
-            (rowStr.includes('cpf') && rowStr.includes('sus')) ||
+            rowStr.includes('nome') ||
+            rowStr.includes('paciente') ||
+            rowStr.includes('cpf') ||
+            rowStr.includes('sus') ||
             rowStr.includes('whatsapp') ||
-            rowStr.includes('procedimento')
+            rowStr.includes('telefone') ||
+            rowStr.includes('procedimento') ||
+            rowStr.includes('destino')
           ) {
             headerRowIndex = i;
+            foundHeader = true;
             break;
           }
         }
 
-        const headerRow = rawGrid[headerRowIndex] || [];
+        // Se não achou nenhuma palavra-chave de cabeçalho nas primeiras 15 linhas, assume que a linha 0 é dados e não há cabeçalho
+        if (!foundHeader && rawGrid.length > 0) {
+          headerRowIndex = -1; // dados começam na linha 0
+        }
+
+        const headerRow = headerRowIndex >= 0 ? (rawGrid[headerRowIndex] || []) : [];
         const normalizedHeaders = headerRow.map((h) => 
           String(h).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
         );
 
-        // Mapeamento das posições das 16 colunas
+        // Mapeamento flexível das colunas
         const findColIdx = (keywords: string[], defaultColIdx: number): number => {
           for (const kw of keywords) {
             const cleanKw = kw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
@@ -368,17 +388,18 @@ export async function parseExcelCapturedRows(file: File): Promise<{
         };
 
         const colIdxMap = {
-          horarioProcedimento: findColIdx(['horario_procedimento', 'horarioprocedimento', 'horario_consulta', 'hora_procedimento', 'horario'], 0),
-          nomePaciente: findColIdx(['nome_paciente', 'nomepaciente', 'nome_completo', 'nome', 'paciente'], 1),
-          dataNascimentoPaciente: findColIdx(['data_nascimento_paciente', 'datanascimentopaciente', 'data_nascimento', 'nascimento_paciente', 'data_nasc', 'nascimento'], 2),
-          cpfPaciente: findColIdx(['cpf_paciente', 'cpfpaciente', 'cpf_pac', 'cpf'], 3),
-          cartaoSusPaciente: findColIdx(['cartao_sus_paciente', 'cartaosuspaciente', 'cartao_sus', 'cns_paciente', 'sus_paciente', 'sus', 'cns'], 4),
-          enderecoEmbarquePaciente: findColIdx(['endereco_embarque_paciente', 'enderecoembarquepaciente', 'endereco_embarque', 'endereco_paciente', 'endereco', 'embarque'], 5),
-          possuiAcompanhante: findColIdx(['possui_acompanhante', 'possuiacompanhante', 'acompanhante', 'tem_acompanhante'], 6),
-          nomeAcompanhante: findColIdx(['nome_acompanhante', 'nomeacompanhante', 'nome_acomp', 'acompanhante_nome'], 7),
-          dataNascimentoAcompanhante: findColIdx(['data_nascimento_acompanhante', 'datanascimentoacompanhante', 'nascimento_acompanhante', 'data_nasc_acomp'], 8),
-          cpfAcompanhante: findColIdx(['cpf_acompanhante', 'cpfacompanhante', 'cpf_acomp'], 9),
-          enderecoEmbarqueAcompanhante: findColIdx(['endereco_embarque_acompanhante', 'enderecoembarqueacompanhante', 'endereco_acomp', 'embarque_acomp'], 10),
+          dataViagem: findColIdx(['data_viagem', 'dataviagem', 'data', 'data_da_viagem'], 0),
+          horarioProcedimento: findColIdx(['horario_procedimento', 'horarioprocedimento', 'horario_consulta', 'hora_procedimento', 'horario'], 1),
+          nomePaciente: findColIdx(['nome_paciente', 'nomepaciente', 'nome_completo', 'nome', 'paciente'], 2),
+          dataNascimentoPaciente: findColIdx(['data_nascimento_paciente', 'datanascimentopaciente', 'data_nascimento', 'nascimento_paciente', 'data_nasc', 'nascimento'], 3),
+          cpfPaciente: findColIdx(['cpf_paciente', 'cpfpaciente', 'cpf_pac', 'cpf'], 4),
+          cartaoSusPaciente: findColIdx(['cartao_sus_paciente', 'cartaosuspaciente', 'cartao_sus', 'cns_paciente', 'sus_paciente', 'sus', 'cns'], 5),
+          enderecoEmbarquePaciente: findColIdx(['endereco_embarque_paciente', 'enderecoembarquepaciente', 'endereco_embarque', 'endereco_paciente', 'endereco', 'embarque'], 6),
+          possuiAcompanhante: findColIdx(['possui_acompanhante', 'possuiacompanhante', 'acompanhante', 'tem_acompanhante'], 7),
+          nomeAcompanhante: findColIdx(['nome_acompanhante', 'nomeacompanhante', 'nome_acomp', 'acompanhante_nome'], 8),
+          dataNascimentoAcompanhante: findColIdx(['data_nascimento_acompanhante', 'datanascimentoacompanhante', 'nascimento_acompanhante', 'data_nasc_acomp'], 9),
+          cpfAcompanhante: findColIdx(['cpf_acompanhante', 'cpfacompanhante', 'cpf_acomp'], 10),
+          enderecoEmbarqueAcompanhante: findColIdx(['endereco_embarque_acompanhante', 'enderecoembarqueacompanhante', 'endereco_acomp', 'embarque_acomp'], 11),
           whatsappPaciente: findColIdx([
             'whatsapp_paciente',
             'whatsapppaciente',
@@ -399,18 +420,20 @@ export async function parseExcelCapturedRows(file: File): Promise<{
             'celular',
             'telefone',
             'fone'
-          ], 11),
-          destino: findColIdx(['endereco_destino', 'enderecodestino', 'endereco_do_destino', 'hospital_destino', 'hospital_referencia', 'hospital', 'destino', 'clinica', 'especialidade', 'condicao'], 12),
-          veiculo: findColIdx(['veiculo', 'veicul', 'veiculo_placa', 'placa', 'frota'], 13),
-          motorista: findColIdx(['motorista', 'motor', 'nome_motorista', 'condutor'], 14),
-          horarioSaida: findColIdx(['horario_saida', 'horariosaida', 'horarios_saida', 'hora_saida', 'saida'], 15),
+          ], 12),
+          destino: findColIdx(['endereco_destino', 'enderecodestino', 'endereco_do_destino', 'hospital_destino', 'hospital_referencia', 'hospital', 'destino', 'clinica', 'especialidade', 'condicao'], 13),
+          veiculo: findColIdx(['veiculo', 'veicul', 'veiculo_placa', 'placa', 'frota'], 14),
+          motorista: findColIdx(['motorista', 'motor', 'nome_motorista', 'condutor'], 15),
+          horarioSaida: findColIdx(['horario_saida', 'horariosaida', 'horarios_saida', 'hora_saida', 'saida'], 16),
         };
 
         const capturedRows: ExcelCapturedRow[] = [];
         const parsedPatients: Patient[] = [];
 
-        // Itera sobre as linhas de dados (após o cabeçalho)
-        for (let rowIdx = headerRowIndex + 1; rowIdx < rawGrid.length; rowIdx++) {
+        const startIndex = headerRowIndex >= 0 ? headerRowIndex + 1 : 0;
+
+        // Itera sobre as linhas de dados
+        for (let rowIdx = startIndex; rowIdx < rawGrid.length; rowIdx++) {
           const rowData = rawGrid[rowIdx] || [];
           if (!rowData || rowData.length === 0) continue;
 
@@ -418,13 +441,34 @@ export async function parseExcelCapturedRows(file: File): Promise<{
             return rowData[idx] !== undefined && rowData[idx] !== null ? rowData[idx] : '';
           };
 
-          // 2. NOME_PACIENTE
-          const rawNome = getCell(colIdxMap.nomePaciente);
-          const nomePaciente = String(rawNome || '').trim();
+          // Tenta pegar o nome do paciente na coluna mapeada
+          let rawNome = getCell(colIdxMap.nomePaciente);
+          let nomePaciente = String(rawNome || '').trim();
 
-          // Ignora linhas em branco ou cabeçalhos acidentais
+          // Se a coluna mapeada estiver vazia ou for igual a cabeçalho, procura em outras colunas por um nome provável
+          if (!nomePaciente || nomePaciente.toLowerCase() === 'nome_paciente' || nomePaciente.toLowerCase() === 'nome' || nomePaciente.toLowerCase() === 'paciente') {
+            for (let c = 0; c < rowData.length; c++) {
+              const val = String(rowData[c] || '').trim();
+              // Se tiver espaço, mais de 3 letras, não for número nem data
+              if (val.length >= 3 && val.includes(' ') && !/^\d+[\/\-]\d+/.test(val) && isNaN(Number(val))) {
+                nomePaciente = val;
+                break;
+              }
+            }
+          }
+
+          // Se ainda não encontrou um nome válido, pula a linha
           if (!nomePaciente || nomePaciente.toLowerCase() === 'nome_paciente' || nomePaciente.toLowerCase() === 'nome') {
             continue;
+          }
+
+          // 0. DATA_VIAGEM
+          const rawDataViagem = getCell(colIdxMap.dataViagem);
+          let dataViagem = parseDateValue(rawDataViagem);
+          
+          if (!dataViagem) {
+            // Se não encontrou uma data de viagem válida, assume a data atual
+            dataViagem = new Date().toISOString().slice(0, 10);
           }
 
           // 1. HORARIO_PROCEDIMENTO
@@ -437,11 +481,30 @@ export async function parseExcelCapturedRows(file: File): Promise<{
 
           // 4. CPF_PACIENTE
           const rawCpfPac = String(getCell(colIdxMap.cpfPaciente) || '');
-          const cpfPaciente = rawCpfPac.replace(/\D/g, '');
+          let cpfPaciente = rawCpfPac.replace(/\D/g, '');
+          if (!cpfPaciente) {
+            // Tenta achar qualquer célula que pareça CPF na linha
+            for (let c = 0; c < rowData.length; c++) {
+              const clean = String(rowData[c] || '').replace(/\D/g, '');
+              if (clean.length === 11) {
+                cpfPaciente = clean;
+                break;
+              }
+            }
+          }
 
           // 5. CARTÃO_SUS_PACIENTE
           const rawSusPac = String(getCell(colIdxMap.cartaoSusPaciente) || '');
-          const cartaoSusPaciente = rawSusPac.replace(/\D/g, '');
+          let cartaoSusPaciente = rawSusPac.replace(/\D/g, '');
+          if (!cartaoSusPaciente) {
+            for (let c = 0; c < rowData.length; c++) {
+              const clean = String(rowData[c] || '').replace(/\D/g, '');
+              if (clean.length >= 14 && clean.length <= 16) {
+                cartaoSusPaciente = clean;
+                break;
+              }
+            }
+          }
 
           // 6. ENDEREÇO_EMBARQUE_PACIENTE
           const rawEndPac = String(getCell(colIdxMap.enderecoEmbarquePaciente) || '').trim();
@@ -473,21 +536,12 @@ export async function parseExcelCapturedRows(file: File): Promise<{
           const rawEndAcomp = String(getCell(colIdxMap.enderecoEmbarqueAcompanhante) || '').trim();
           const enderecoEmbarqueAcompanhante = rawEndAcomp || (possuiAcompanhante ? enderecoEmbarquePaciente : '');
 
-          // 12. WHATSAPP_PACIENTE (Coluna 12 / wHATSAPP_PACIENTE)
+          // 12. WHATSAPP_PACIENTE
           let rawWhatsapp = getCell(colIdxMap.whatsappPaciente);
           let whatsappPaciente = parsePhoneValue(rawWhatsapp);
 
-          // Se a coluna mapeada não retornou nada, tenta diretamente a coluna física 12 (índice 11)
-          if (!whatsappPaciente && rowData[11] !== undefined) {
-            whatsappPaciente = parsePhoneValue(rowData[11]);
-          }
-
-          // Se ainda não encontrou, faz uma busca de varredura na linha por qualquer número de telefone válido
           if (!whatsappPaciente) {
             for (let c = 0; c < rowData.length; c++) {
-              if (c === colIdxMap.cpfPaciente || c === colIdxMap.cartaoSusPaciente || c === colIdxMap.cpfAcompanhante) {
-                continue;
-              }
               const candidate = parsePhoneValue(rowData[c]);
               if (candidate && candidate.length >= 8 && candidate.length <= 13) {
                 whatsappPaciente = candidate;
@@ -496,7 +550,7 @@ export async function parseExcelCapturedRows(file: File): Promise<{
             }
           }
 
-          // 13. DESTINO / HOSPITAL
+          // 13. DESTINO
           const rawDestino = String(getCell(colIdxMap.destino) || '').trim();
           const destino = rawDestino || 'Hospital de Destino';
 
@@ -512,8 +566,8 @@ export async function parseExcelCapturedRows(file: File): Promise<{
           const rawHorarioSaida = getCell(colIdxMap.horarioSaida);
           const horarioSaida = rawHorarioSaida ? parseTimeValue(rawHorarioSaida) : '05:30';
 
-          // Linha capturada para o modal
           capturedRows.push({
+            dataViagem,
             horarioProcedimento,
             nomePaciente,
             dataNascimentoPaciente,
@@ -533,7 +587,6 @@ export async function parseExcelCapturedRows(file: File): Promise<{
             rawRow: rowData,
           });
 
-          // Objeto Patient pronto para o cadastro do sistema
           const patientObj: Patient = {
             id: `pat-${Date.now()}-${rowIdx}-${Math.random().toString(36).substr(2, 4)}`,
             name: nomePaciente,

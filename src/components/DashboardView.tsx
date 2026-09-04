@@ -48,7 +48,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onPrintManifest,
   onOpenClosureModal,
 }) => {
-  const scheduledTrips = useMemo(() => trips.filter((t) => t.status === 'scheduled'), [trips]);
+  const scheduledTrips = useMemo(() => trips.filter((t) => t.status === 'scheduled' || t.status === 'in_route'), [trips]);
   const completedTrips = useMemo(() => trips.filter((t) => t.status === 'completed'), [trips]);
   
   // Total passengers across scheduled trips
@@ -122,7 +122,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           className="p-4 bg-white rounded-xl border border-slate-200 hover:border-sky-300 shadow-xs transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 text-xs font-semibold uppercase">Viagens Programadas</span>
+            <span className="text-slate-500 text-xs font-semibold uppercase">Viagens em Aberto</span>
             <div className="w-9 h-9 bg-sky-50 text-sky-700 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
               <Bus className="w-5 h-5" />
             </div>
@@ -210,7 +210,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-900">Próximas Viagens Programadas & Lotação</h3>
+              <h3 className="text-base font-bold text-slate-900">Viagens em Aberto & Lotação</h3>
               <p className="text-xs text-slate-500">Acompanhe vagas livres, assentos ocupados e emita manifestos</p>
             </div>
             <button

@@ -5,7 +5,7 @@ import { downloadSamplePatientTemplate, parseExcelCapturedRows, ExcelCapturedRow
 import { formatCPF, formatSUS, formatPhone, formatDateBR } from '../../utils/formatters';
 
 interface ExcelImportModalProps {
-  onImportPatients: (newPatients: Patient[]) => void;
+  onImportPatients: (newPatients: Patient[], capturedRows?: ExcelCapturedRow[]) => void;
   onClose: () => void;
 }
 
@@ -22,22 +22,23 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const captureColumns = [
-    { num: '01', name: 'HORARIO_PROCEDIMENTO', desc: 'Horário da consulta ou procedimento no hospital' },
-    { num: '02', name: 'NOME_PACIENTE', desc: 'Nome completo do paciente' },
-    { num: '03', name: 'DATA_NASCIMENTO_PACIENTE', desc: 'Data de nascimento (DD/MM/AAAA)' },
-    { num: '04', name: 'CPF_PACIENTE', desc: 'CPF do paciente' },
-    { num: '05', name: 'CARTÃO_SUS_PACIENTE', desc: 'Cartão Nacional de Saúde (CNS - 15 dígitos)' },
-    { num: '06', name: 'ENDEREÇO_EMBARQUE_PACIENTE', desc: 'Endereço residencial / ponto de embarque' },
-    { num: '07', name: 'POSSUI_ACOMPANHANTE', desc: 'SIM ou NÃO' },
-    { num: '08', name: 'NOME_ACOMPANHANTE', desc: 'Nome do acompanhante autorizado' },
-    { num: '09', name: 'DATA_NASCIMENTO_ACOMPANHANTE', desc: 'Data de nascimento do acompanhante' },
-    { num: '10', name: 'CPF_ACOMPANHANTE', desc: 'CPF do acompanhante' },
-    { num: '11', name: 'ENDEREÇO_EMBARQUE_ACOMPANHANTE', desc: 'Endereço de embarque do acompanhante' },
-    { num: '12', name: 'WHATSAPP_PACIENTE', desc: 'Telefone / WhatsApp com DDD' },
-    { num: '13', name: 'ENDEREÇO_DESTINO', desc: 'Hospital de referência, clínica ou endereço no município de destino' },
-    { num: '14', name: 'VEICULO', desc: 'Veículo atribuído (opcional para agendamento direto)' },
-    { num: '15', name: 'MOTORISTA', desc: 'Motorista responsável (opcional)' },
-    { num: '16', name: 'HORARIO_SAIDA', desc: 'Horário de saída da viagem' },
+    { num: '01', name: 'DATA_VIAGEM', desc: 'Data da viagem (DD/MM/AAAA) - Apenas datas futuras/hoje serão importadas' },
+    { num: '02', name: 'HORARIO_PROCEDIMENTO', desc: 'Horário da consulta ou procedimento no hospital' },
+    { num: '03', name: 'NOME_PACIENTE', desc: 'Nome completo do paciente' },
+    { num: '04', name: 'DATA_NASCIMENTO_PACIENTE', desc: 'Data de nascimento (DD/MM/AAAA)' },
+    { num: '05', name: 'CPF_PACIENTE', desc: 'CPF do paciente' },
+    { num: '06', name: 'CARTÃO_SUS_PACIENTE', desc: 'Cartão Nacional de Saúde (CNS - 15 dígitos)' },
+    { num: '07', name: 'ENDEREÇO_EMBARQUE_PACIENTE', desc: 'Endereço residencial / ponto de embarque' },
+    { num: '08', name: 'POSSUI_ACOMPANHANTE', desc: 'SIM ou NÃO' },
+    { num: '09', name: 'NOME_ACOMPANHANTE', desc: 'Nome do acompanhante autorizado' },
+    { num: '10', name: 'DATA_NASCIMENTO_ACOMPANHANTE', desc: 'Data de nascimento do acompanhante' },
+    { num: '11', name: 'CPF_ACOMPANHANTE', desc: 'CPF do acompanhante' },
+    { num: '12', name: 'ENDEREÇO_EMBARQUE_ACOMPANHANTE', desc: 'Endereço de embarque do acompanhante' },
+    { num: '13', name: 'WHATSAPP_PACIENTE', desc: 'Telefone / WhatsApp com DDD' },
+    { num: '14', name: 'ENDEREÇO_DESTINO', desc: 'Hospital de referência, clínica ou endereço no município de destino' },
+    { num: '15', name: 'VEICULO', desc: 'Veículo atribuído (opcional para agendamento direto)' },
+    { num: '16', name: 'MOTORISTA', desc: 'Motorista responsável (opcional)' },
+    { num: '17', name: 'HORARIO_SAIDA', desc: 'Horário de saída da viagem' },
   ];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,7 +67,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
   const handleConfirmImport = () => {
     if (parsedList.length === 0) return;
-    onImportPatients(parsedList);
+    onImportPatients(parsedList, capturedRows);
     onClose();
   };
 
@@ -251,22 +252,23 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                       <thead>
                         <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-200 sticky top-0">
                           <th className="py-2.5 px-2 text-center w-8">#</th>
-                          <th className="py-2.5 px-2 w-20">1. Horário Proc.</th>
-                          <th className="py-2.5 px-3 min-w-[180px]">2. Nome Paciente</th>
-                          <th className="py-2.5 px-2 w-24">3. Data Nasc.</th>
-                          <th className="py-2.5 px-2 w-28">4. CPF</th>
-                          <th className="py-2.5 px-2 w-32">5. Cartão SUS</th>
-                          <th className="py-2.5 px-3 min-w-[180px]">6. Endereço Embarque</th>
-                          <th className="py-2.5 px-2 w-16 text-center">7. Acomp?</th>
-                          <th className="py-2.5 px-3 min-w-[160px]">8. Nome Acomp.</th>
-                          <th className="py-2.5 px-2 w-24">9. Nasc. Acomp.</th>
-                          <th className="py-2.5 px-2 w-28">10. CPF Acomp.</th>
-                          <th className="py-2.5 px-3 min-w-[160px]">11. End. Acomp.</th>
-                          <th className="py-2.5 px-2 w-28">12. WhatsApp</th>
-                          <th className="py-2.5 px-3 min-w-[150px]">13. Destino</th>
-                          <th className="py-2.5 px-2 w-28">14. Veículo</th>
-                          <th className="py-2.5 px-2 w-28">15. Motorista</th>
-                          <th className="py-2.5 px-2 w-20">16. Hor. Saída</th>
+                          <th className="py-2.5 px-2 w-24">1. Data Viagem</th>
+                          <th className="py-2.5 px-2 w-20">2. Horário Proc.</th>
+                          <th className="py-2.5 px-3 min-w-[180px]">3. Nome Paciente</th>
+                          <th className="py-2.5 px-2 w-24">4. Data Nasc.</th>
+                          <th className="py-2.5 px-2 w-28">5. CPF</th>
+                          <th className="py-2.5 px-2 w-32">6. Cartão SUS</th>
+                          <th className="py-2.5 px-3 min-w-[180px]">7. Endereço Embarque</th>
+                          <th className="py-2.5 px-2 w-16 text-center">8. Acomp?</th>
+                          <th className="py-2.5 px-3 min-w-[160px]">9. Nome Acomp.</th>
+                          <th className="py-2.5 px-2 w-24">10. Nasc. Acomp.</th>
+                          <th className="py-2.5 px-2 w-28">11. CPF Acomp.</th>
+                          <th className="py-2.5 px-3 min-w-[160px]">12. End. Acomp.</th>
+                          <th className="py-2.5 px-2 w-28">13. WhatsApp</th>
+                          <th className="py-2.5 px-3 min-w-[150px]">14. Destino</th>
+                          <th className="py-2.5 px-2 w-28">15. Veículo</th>
+                          <th className="py-2.5 px-2 w-28">16. Motorista</th>
+                          <th className="py-2.5 px-2 w-20">17. Hor. Saída</th>
                           <th className="py-2.5 px-2 text-center w-10">Ação</th>
                         </tr>
                       </thead>
@@ -274,6 +276,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                         {capturedRows.map((r, idx) => (
                           <tr key={idx} className="hover:bg-slate-50">
                             <td className="py-2 px-2 text-center text-slate-500 font-mono">{idx + 1}</td>
+                            <td className="py-2 px-2 font-bold text-emerald-700">{formatDateBR(r.dataViagem)}</td>
                             <td className="py-2 px-2 font-bold text-slate-900">{r.horarioProcedimento}</td>
                             <td className="py-2 px-3 font-bold text-slate-900">{r.nomePaciente}</td>
                             <td className="py-2 px-2 text-slate-700">{formatDateBR(r.dataNascimentoPaciente)}</td>
@@ -330,7 +333,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               Fechar
             </button>
 
-            {parsedList.length > 0 && activeTab === 'preview' && (
+            {parsedList.length > 0 && (
               <button
                 type="button"
                 id="btn-confirm-import-patients"
@@ -338,7 +341,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 className="flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-xs shadow-md transition-colors cursor-pointer"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                Confirmar Importação de {parsedList.length} Pacientes
+                Confirmar Importação de {parsedList.length} Pacientes & Agendamentos
               </button>
             )}
           </div>

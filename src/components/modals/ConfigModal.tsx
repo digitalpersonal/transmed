@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { X, Settings, Building2, Phone, Mail, MapPin, Save, RotateCcw, Download, Upload } from 'lucide-react';
+import { X, Settings, Building2, Phone, Mail, MapPin, Save, RotateCcw, Download, Upload, Trash2 } from 'lucide-react';
 import { MunicipalConfig } from '../../types';
 
 interface ConfigModalProps {
   config: MunicipalConfig;
   onSaveConfig: (newConfig: MunicipalConfig) => void;
   onResetData: () => void;
+  onClearAllData: () => void;
   onExportBackup: () => void;
   onImportBackup: (jsonString: string) => void;
   onClose: () => void;
@@ -15,12 +16,15 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   config,
   onSaveConfig,
   onResetData,
+  onClearAllData,
   onExportBackup,
   onImportBackup,
   onClose,
 }) => {
   const [formData, setFormData] = useState<MunicipalConfig>({ ...config });
   const [newInstruction, setNewInstruction] = useState<string>('');
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const handleAddInstruction = () => {
     if (!newInstruction.trim()) return;
@@ -221,19 +225,39 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
                 <input type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
               </label>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Tem certeza que deseja restaurar os dados de exemplo padrão?')) {
-                    onResetData();
-                    onClose();
-                  }
-                }}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-rose-700 hover:bg-rose-50 rounded text-xs font-bold cursor-pointer"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Restaurar Padrão
-              </button>
+              {confirmClear ? (
+                <div className="flex items-center gap-2 bg-red-50 p-1.5 rounded border border-red-200">
+                  <span className="text-xs text-red-700 font-bold px-1">Tem certeza? Apagar TUDO?</span>
+                  <button type="button" onClick={() => setConfirmClear(false)} className="px-2 py-1 text-xs text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 cursor-pointer">Cancelar</button>
+                  <button type="button" onClick={() => { onClearAllData(); onClose(); }} className="px-2 py-1 text-xs text-white bg-red-600 rounded hover:bg-red-700 font-bold cursor-pointer">Sim</button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClear(true)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-red-700 hover:bg-red-50 rounded text-xs font-bold cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Limpar Tudo (Zerar)
+                </button>
+              )}
+              
+              {confirmReset ? (
+                <div className="flex items-center gap-2 bg-rose-50 p-1.5 rounded border border-rose-200">
+                  <span className="text-xs text-rose-700 font-bold px-1">Restaurar dados padrão?</span>
+                  <button type="button" onClick={() => setConfirmReset(false)} className="px-2 py-1 text-xs text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 cursor-pointer">Cancelar</button>
+                  <button type="button" onClick={() => { onResetData(); onClose(); }} className="px-2 py-1 text-xs text-white bg-rose-600 rounded hover:bg-rose-700 font-bold cursor-pointer">Sim</button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmReset(true)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-rose-700 hover:bg-rose-50 rounded text-xs font-bold cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Restaurar Padrão
+                </button>
+              )}
             </div>
           </div>
 

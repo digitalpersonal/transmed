@@ -9,7 +9,31 @@ const STORAGE_KEYS = {
   DESTINATION_CITIES: 'tfd_destination_cities_v2',
   CONFIG: 'tfd_config_v1',
   DRIVERS: 'tfd_drivers_v2',
+  DELETED_TRIPS: 'tfd_deleted_trips_v1',
 };
+
+export function getDeletedTripIds(): string[] {
+  try {
+    const data = safeGetItem(STORAGE_KEYS.DELETED_TRIPS);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markTripAsDeleted(tripId: string): void {
+  try {
+    const deleted = getDeletedTripIds();
+    if (!deleted.includes(tripId)) {
+      deleted.push(tripId);
+      safeSetItem(STORAGE_KEYS.DELETED_TRIPS, JSON.stringify(deleted));
+    }
+  } catch (e) {
+    console.error('Error marking trip as deleted', e);
+  }
+}
 
 // In-memory fallback if localStorage is blocked by iframe sandbox
 const memoryStore: Record<string, string> = {};
@@ -99,17 +123,21 @@ export function saveVehicles(vehicles: Vehicle[]): void {
 
 export function getStoredTrips(): Trip[] {
   try {
+    const deletedIds = getDeletedTripIds();
     const data = safeGetItem(STORAGE_KEYS.TRIPS);
     if (!data) {
-      safeSetItem(STORAGE_KEYS.TRIPS, JSON.stringify(INITIAL_TRIPS));
-      return INITIAL_TRIPS;
+      const filteredInitial = INITIAL_TRIPS.filter(t => !deletedIds.includes(t.id));
+      safeSetItem(STORAGE_KEYS.TRIPS, JSON.stringify(filteredInitial));
+      return filteredInitial;
     }
     const parsed = JSON.parse(data);
-    if (!Array.isArray(parsed)) return INITIAL_TRIPS;
-    return parsed.map((t: any) => ({
-      ...t,
-      passengers: ensurePassengerArray(t.passengers)
-    }));
+    if (!Array.isArray(parsed)) return INITIAL_TRIPS.filter(t => !deletedIds.includes(t.id));
+    return parsed
+      .map((t: any) => ({
+        ...t,
+        passengers: ensurePassengerArray(t.passengers)
+      }))
+      .filter((t) => !deletedIds.includes(t.id));
   } catch (e) {
     console.error('Error loading trips from storage', e);
     return INITIAL_TRIPS;
@@ -118,7 +146,9 @@ export function getStoredTrips(): Trip[] {
 
 export function saveTrips(trips: Trip[]): void {
   try {
-    safeSetItem(STORAGE_KEYS.TRIPS, JSON.stringify(trips));
+    const deletedIds = getDeletedTripIds();
+    const filtered = trips.filter(t => !deletedIds.includes(t.id));
+    safeSetItem(STORAGE_KEYS.TRIPS, JSON.stringify(filtered));
   } catch (e) {
     console.error('Error saving trips', e);
   }

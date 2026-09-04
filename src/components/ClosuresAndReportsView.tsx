@@ -8,7 +8,8 @@ import {
   CheckCircle2, 
   MapPin, 
   FileSpreadsheet,
-  Bus
+  Bus,
+  Trash2
 } from 'lucide-react';
 import { DestinationHospital, MunicipalConfig, Patient, Trip, Vehicle } from '../types';
 import { exportClosuresReportToExcel } from '../utils/excel';
@@ -21,6 +22,7 @@ interface ClosuresAndReportsViewProps {
   destinations: DestinationHospital[];
   config: MunicipalConfig;
   onPrintClosure: (trip: Trip) => void;
+  onDeleteTrip?: (tripId: string) => void;
 }
 
 export const ClosuresAndReportsView: React.FC<ClosuresAndReportsViewProps> = ({
@@ -30,8 +32,10 @@ export const ClosuresAndReportsView: React.FC<ClosuresAndReportsViewProps> = ({
   destinations,
   config,
   onPrintClosure,
+  onDeleteTrip,
 }) => {
   const [selectedCity, setSelectedCity] = useState<string>('all');
+  const [tripToDelete, setTripToDelete] = useState<Trip | null>(null);
 
   const completedTrips = useMemo(() => trips.filter((t) => t.status === 'completed' && t.closure), [trips]);
 
@@ -147,7 +151,7 @@ export const ClosuresAndReportsView: React.FC<ClosuresAndReportsViewProps> = ({
                 <th className="py-2.5 px-3">Km Percorrido</th>
                 <th className="py-2.5 px-3">Frequência</th>
                 <th className="py-2.5 px-3">Fechado Em / Por</th>
-                <th className="py-2.5 px-3 text-center">Recibo</th>
+                <th className="py-2.5 px-3 text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -206,14 +210,26 @@ export const ClosuresAndReportsView: React.FC<ClosuresAndReportsViewProps> = ({
                       </td>
 
                       <td className="py-3 px-3 text-center">
-                        <button
-                          onClick={() => onPrintClosure(trip)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                          title="Imprimir Relatório de Fechamento"
-                        >
-                          <Printer className="w-3.5 h-3.5 text-slate-600" />
-                          <span>Imprimir</span>
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => onPrintClosure(trip)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                            title="Imprimir Relatório de Fechamento"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-slate-600" />
+                            <span>Imprimir</span>
+                          </button>
+
+                          {onDeleteTrip && (
+                            <button
+                              onClick={() => setTripToDelete(trip)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors"
+                              title="Excluir viagem"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -228,6 +244,40 @@ export const ClosuresAndReportsView: React.FC<ClosuresAndReportsViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {tripToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center font-bold">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Confirmar Exclusão de Viagem</h3>
+            </div>
+            <p className="text-sm text-slate-600">
+              Tem certeza que deseja excluir a viagem <strong>{tripToDelete.code}</strong> com destino a <strong>{tripToDelete.destinationCity}</strong>? Esta ação removerá o agendamento permanentemente.
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setTripToDelete(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  onDeleteTrip && onDeleteTrip(tripToDelete.id);
+                  setTripToDelete(null);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+              >
+                Sim, Excluir Viagem
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

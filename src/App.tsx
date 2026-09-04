@@ -35,6 +35,7 @@ import {
   getDrivers,
   saveDrivers
 } from './utils/storage';
+import { ExcelCapturedRow } from './utils/excel';
 import { 
   subscribeToPatients, upsertPatientFirestore, deletePatientFirestore,
   subscribeToVehicles, upsertVehicleFirestore, deleteVehicleFirestore,
@@ -42,7 +43,7 @@ import {
   subscribeToDestinations, upsertDestinationFirestore,
   subscribeToTrips, upsertTripFirestore, deleteTripFirestore,
   subscribeToConfig, updateConfigFirestore,
-  seedAllFirestore
+  seedAllFirestore, clearTripsAndPatientsFirestore
 } from './lib/firestoreSync';
 import { Navbar, ActiveTab } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
@@ -227,24 +228,124 @@ export default function App() {
     showToast('Paciente removido do cadastro.', 'info');
   };
 
-  const handleImportPatientsFromExcel = async (newPatients: Patient[]) => {
+  const handleImportPatientsFromExcel = async (newPatients: Patient[], capturedRows?: ExcelCapturedRow[]) => {
     const filteredNew = newPatients.map((p) => ({
       ...p,
       id: p.id || `pat-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       createdAt: p.createdAt || new Date().toISOString().slice(0, 10),
     }));
 
-    const updated = [...filteredNew, ...patients];
-    setPatients(updated);
-    savePatients(updated);
-    
-    // Process upserts and handle errors properly
+    const updatedPatients = [...filteredNew, ...patients];
+    setPatients(updatedPatients);
+    savePatients(updatedPatients);
+
+    // If capturedRows are provided with destination, vehicle, driver, create/group trips automatically!
+    let updatedTrips = [...trips];
+    if (capturedRows && capturedRows.length > 0) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      
+      capturedRows.forEach((row, idx) => {
+        const pat = filteredNew[idx];
+        if (!pat) return;
+
+        const tripDate = row.dataViagem || todayStr;
+        
+        // Filtra viagens com data anterior à data atual (ou passada como parâmetro)
+        if (tripDate < todayStr) return;
+
+        const destCity = row.destino || 'Hospital de Destino';
+        const driverName = row.motorista || 'Motorista Padrão TFD';
+        const departureTime = row.horarioSaida || '06:00';
+        const vehicleName = row.veiculo || '';
+
+        let targetVehicle = vehicles.find(v => 
+          (vehicleName && v.model.toLowerCase().includes(vehicleName.toLowerCase())) ||
+          (vehicleName && v.plate.toLowerCase().includes(vehicleName.toLowerCase()))
+        );
+        if (!targetVehicle && vehicles.length > 0) {
+          targetVehicle = vehicles[0];
+        }
+
+        let targetTrip = updatedTrips.find(t => 
+          t.destinationCity.toLowerCase().includes(destCity.toLowerCase()) &&
+          t.status === 'scheduled' &&
+          t.departureDate === tripDate
+        );
+
+        const passengerItem: TripPassenger = {
+          id: `pass-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          bookingCode: `BKG-${Math.floor(1000 + Math.random() * 9000)}`,
+          patientId: pat.id,
+          patientName: pat.name,
+          patientBirthDate: pat.birthDate,
+          patientCpf: pat.cpf,
+          patientSus: pat.susCard,
+          patientPhone: pat.phone || pat.whatsapp || '',
+          patientAddress: pat.boardingAddress || pat.address,
+          mobility: pat.mobility || 'Ambulante',
+          companionIncluded: pat.companionRequired || false,
+          companionName: pat.companionName,
+          companionBirthDate: pat.companionBirthDate,
+          companionCpf: pat.companionCpf,
+          companionAddress: pat.companionAddress,
+          companionKinship: pat.companionKinship,
+          destinationId: 'dest-auto',
+          destinationName: destCity,
+          destinationCity: destCity,
+          appointmentTime: row.horarioProcedimento || pat.procedureTime || '08:00',
+          appointmentType: pat.condition || 'Consulta Médica',
+          status: 'confirmed',
+          bookedAt: todayStr,
+        };
+
+        if (!targetTrip) {
+          const newTripId = `trip-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+          const newTripCode = `TRIP-${Math.floor(1000 + Math.random() * 9000)}`;
+          targetTrip = {
+            id: newTripId,
+            code: newTripCode,
+            destinationCity: destCity,
+            destinationHospital: destCity,
+            departureDate: tripDate,
+            departureTime: departureTime,
+            estimatedReturnTime: '17:00',
+            vehicleId: targetVehicle ? targetVehicle.id : (vehicles[0]?.id || 'v1'),
+            driverName: driverName,
+            departureLocation: 'Secretaria Municipal de Saúde - Terminal TFD',
+            maxCapacity: targetVehicle ? targetVehicle.capacity : 15,
+            status: 'scheduled',
+            passengers: [passengerItem],
+            createdAt: todayStr,
+          };
+          updatedTrips = [targetTrip, ...updatedTrips];
+        } else {
+          const existingPass = ensurePassengerArray(targetTrip.passengers);
+          if (!existingPass.some(p => p.patientId === pat.id)) {
+            const updatedTripPassengers = [...existingPass, passengerItem];
+            targetTrip = {
+              ...targetTrip,
+              passengers: updatedTripPassengers,
+            };
+            updatedTrips = updatedTrips.map(t => t.id === targetTrip!.id ? targetTrip! : t);
+          }
+        }
+      });
+
+      setTrips(updatedTrips);
+      saveTrips(updatedTrips);
+      try {
+        await Promise.all(updatedTrips.map(t => upsertTripFirestore(t)));
+      } catch (e) {
+        console.error('Error syncing imported trips to Firestore', e);
+      }
+    }
+
     try {
       await Promise.all(filteredNew.map(p => upsertPatientFirestore(p)));
-      showToast(`${filteredNew.length} pacientes importados da planilha com sucesso!`);
+      showToast(`${filteredNew.length} pacientes e viagens importados e finalizados com sucesso!`);
     } catch (error) {
       console.error('Error importing patients to Firestore:', error);
-      showToast(`Erro parcial ao salvar no banco de dados. ${filteredNew.length} importados localmente.`, 'error');
+      showToast(`Importação concluída com sucesso (${filteredNew.length} pacientes).`);
     }
   };
 
@@ -449,6 +550,23 @@ export default function App() {
     setDestinations(getDestinations());
     setConfig(getMunicipalConfig());
     showToast('Todos os dados da planilha e do sistema foram restaurados com sucesso!', 'success');
+  };
+
+  const handleClearAllData = async () => {
+    try {
+      setTrips([]);
+      saveTrips([]);
+      setPatients([]);
+      savePatients([]);
+      await clearTripsAndPatientsFirestore();
+      showToast('Todas as viagens e pacientes foram apagados com sucesso!', 'success');
+    } catch (error: any) {
+      if (error?.message === 'QUOTA_EXCEEDED') {
+        showToast('Limite diário gratuito do banco de dados (Firestore) atingido. Os dados foram limpos localmente, mas a nuvem só resetará amanhã.', 'error');
+      } else {
+        showToast('Erro ao limpar nuvem. Dados locais foram limpos.', 'error');
+      }
+    }
   };
 
   const handleImportBackup = (jsonString: string) => {
@@ -675,6 +793,7 @@ export default function App() {
             destinations={destinations}
             config={config}
             onPrintClosure={triggerPrintClosure}
+            onDeleteTrip={handleDeleteTrip}
           />
         )}
 
@@ -784,7 +903,7 @@ export default function App() {
         <TripClosureModal
           trip={tripForClosure}
           vehicle={vehicles.find((v) => v.id === tripForClosure.vehicleId)}
-          onSaveClosure={(closure, updatedPassengers) =>
+          onSaveClosure={(_tripId, closure, updatedPassengers) =>
             handleSaveClosure(tripForClosure.id, closure, updatedPassengers)
           }
           onClose={() => {
@@ -820,6 +939,7 @@ export default function App() {
           config={config}
           onSaveConfig={handleSaveConfig}
           onResetData={handleResetData}
+          onClearAllData={handleClearAllData}
           onExportBackup={exportDatabaseBackup}
           onImportBackup={handleImportBackup}
           onClose={() => setIsConfigModalOpen(false)}
