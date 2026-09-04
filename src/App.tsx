@@ -53,6 +53,7 @@ import { VehiclesView } from './components/VehiclesView';
 import { DriversView } from './components/DriversView';
 import { DestinationCitiesView } from './components/DestinationCitiesView';
 import { ClosuresAndReportsView } from './components/ClosuresAndReportsView';
+import { BpaExportView } from './components/BpaExportView';
 
 // Modals
 import { PatientFormModal } from './components/modals/PatientFormModal';
@@ -674,6 +675,22 @@ export default function App() {
             destinations={destinations}
             config={config}
             onPrintClosure={triggerPrintClosure}
+          />
+        )}
+
+        {activeTab === 'bpa' && (
+          <BpaExportView
+            trips={trips}
+            drivers={drivers}
+            patients={patients}
+            config={config}
+            onUpdateDriver={handleSaveDriver}
+            onUpdateConfig={(newCfg) => {
+              setConfig(newCfg);
+              saveMunicipalConfig(newCfg);
+              updateConfigFirestore(newCfg).catch(() => {});
+            }}
+            showToast={showToast}
           />
         )}
       </main>

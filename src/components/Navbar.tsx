@@ -13,11 +13,12 @@ import {
   HelpCircle,
   Truck,
   UserCircle2,
-  MapPin
+  MapPin,
+  FileText
 } from 'lucide-react';
 import { MunicipalConfig } from '../types';
 
-export type ActiveTab = 'dashboard' | 'trips' | 'bookings' | 'patients' | 'vehicles' | 'drivers' | 'destinations' | 'reports';
+export type ActiveTab = 'dashboard' | 'trips' | 'bookings' | 'patients' | 'vehicles' | 'drivers' | 'destinations' | 'reports' | 'bpa';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -51,6 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'drivers', label: 'Motoristas', icon: UserCircle2 },
     { id: 'destinations', label: 'Cidades Atendidas', icon: MapPin },
     { id: 'reports', label: 'Fechamentos & Relatórios', icon: FileCheck },
+    { id: 'bpa', label: 'Faturamento BPA', icon: FileText },
   ];
 
   return (
@@ -125,7 +127,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Navigation Tabs Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav className="flex space-x-1 sm:space-x-2 overflow-x-auto py-1 scrollbar-none">
+        <nav className="flex flex-wrap items-center gap-1 py-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -134,13 +136,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 key={tab.id}
                 id={`tab-${tab.id}`}
                 onClick={() => setActiveTab(tab.id as ActiveTab)}
-                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                   isActive
-                    ? 'border-emerald-500 text-white bg-slate-800/80 shadow-xs'
-                    : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-400' : 'text-slate-400'}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
               </button>
             );

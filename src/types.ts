@@ -14,6 +14,8 @@ export interface Driver {
   status: 'active' | 'inactive';
   notes?: string;
   createdAt: string;
+  cns?: string; // Cartão Nacional de Saúde (15 dígitos)
+  cbo?: string; // CBO do Motorista (6 dígitos, ex: 515125)
 }
 
 export interface Vehicle {
@@ -61,6 +63,7 @@ export interface Patient {
   boardingAddress?: string;
   neighborhood: string;
   city: string;
+  ibgeCode?: string; // Código IBGE do município (6 dígitos)
   condition: PatientCondition;
   mobility: MobilityType;
   procedureTime?: string;
@@ -218,6 +221,7 @@ export interface MunicipalConfig {
   address: string;
   tfdCoordinator: string;
   instructionsPatient: string[];
+  cnesUnit?: string; // CNES da Unidade (7 dígitos)
 }
 
 export interface SystemUser {
