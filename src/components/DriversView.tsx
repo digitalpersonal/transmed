@@ -117,6 +117,22 @@ export const DriversView: React.FC<DriversViewProps> = ({
                     {driver.cnhExpiration.split('-').reverse().join('/')}
                   </span>
                 </div>
+                {(driver.cns || driver.cbo) && (
+                  <div className="pt-2 mt-1.5 border-t border-dashed border-slate-200 grid grid-cols-2 gap-2 text-[10px] text-slate-500">
+                    {driver.cns && (
+                      <div>
+                        <span className="text-slate-400 font-semibold block">CNS PROFISSIONAL</span>
+                        <span className="font-mono font-bold text-slate-800">{driver.cns}</span>
+                      </div>
+                    )}
+                    {driver.cbo && (
+                      <div>
+                        <span className="text-slate-400 font-semibold block">CBO ATUAÇÃO</span>
+                        <span className="font-mono font-bold text-slate-800">{driver.cbo}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {driver.notes && (

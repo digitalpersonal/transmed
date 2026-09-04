@@ -42,20 +42,27 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
   const [conditionFilter, setConditionFilter] = useState<string>('all');
   const [companionFilter, setCompanionFilter] = useState<string>('all');
 
+  // Helper to normalize Portuguese diacritics / accents
+  const normalizeString = (str: string): string => {
+    return (str || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  };
+
   const filteredPatients = useMemo(() => patients.filter((p) => {
-    const term = searchTerm.toLowerCase().trim();
+    const term = normalizeString(searchTerm.trim());
     const cleanDigits = term.replace(/\D/g, '');
     const matchSearch =
       !term ||
-      (p.name || '').toLowerCase().includes(term) ||
-      (cleanDigits && (p.cpf || '').includes(cleanDigits)) ||
-      (cleanDigits && (p.susCard || '').includes(cleanDigits)) ||
-      (cleanDigits && ((p.whatsapp || '') + (p.phone || '')).includes(cleanDigits)) ||
-      (cleanDigits && p.whatsapp && p.whatsapp.includes(cleanDigits)) ||
-      (p.address || '').toLowerCase().includes(term) ||
-      (p.boardingAddress && p.boardingAddress.toLowerCase().includes(term)) ||
-      (p.neighborhood && p.neighborhood.toLowerCase().includes(term)) ||
-      (p.companionName && p.companionName.toLowerCase().includes(term));
+      normalizeString(p.name).includes(term) ||
+      (cleanDigits && (p.cpf || '').replace(/\D/g, '').includes(cleanDigits)) ||
+      (cleanDigits && (p.susCard || '').replace(/\D/g, '').includes(cleanDigits)) ||
+      (cleanDigits && ((p.whatsapp || '') + (p.phone || '')).replace(/\D/g, '').includes(cleanDigits)) ||
+      (p.address && normalizeString(p.address).includes(term)) ||
+      (p.boardingAddress && normalizeString(p.boardingAddress).includes(term)) ||
+      (p.neighborhood && normalizeString(p.neighborhood).includes(term)) ||
+      (p.companionName && normalizeString(p.companionName).includes(term));
 
     const matchCondition = conditionFilter === 'all' || p.condition === conditionFilter;
     const matchCompanion =

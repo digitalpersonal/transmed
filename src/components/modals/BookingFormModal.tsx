@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Calendar, User, ShieldCheck, MapPin, Clock, AlertTriangle, Check, Ticket, Search } from 'lucide-react';
 import { DestinationHospital, Patient, Trip, TripPassenger, Vehicle, ensurePassengerArray } from '../../types';
 import { formatCPF, formatDateBR, formatPhone, formatPlate, formatSUS, generateBookingCode } from '../../utils/formatters';
@@ -29,6 +29,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   const [selectedTripId, setSelectedTripId] = useState<string>(preselectedTripId || '');
   const [selectedPatientId, setSelectedPatientId] = useState<string>(preselectedPatientId || '');
   const [patientSearch, setPatientSearch] = useState<string>('');
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -56,17 +57,38 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   // Active trips available for booking (scheduled or in_route)
   const availableTrips = trips.filter((t) => t.status === 'scheduled');
 
-  // Filtered patients for selection
-  const filteredPatients = patients.filter((p) => {
-    const term = patientSearch.toLowerCase().trim();
-    if (!term) return true;
-    const cleanDigits = term.replace(/\D/g, '');
-    return (
-      (p.name || '').toLowerCase().includes(term) ||
-      (cleanDigits && (p.cpf || '').includes(cleanDigits)) ||
-      (cleanDigits && (p.susCard || '').includes(cleanDigits))
-    );
-  });
+  // Helper to normalize Portuguese diacritics / accents
+  const normalizeString = (str: string): string => {
+    return (str || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  };
+
+  // Filtered patients for selection (now robust & diacritics-insensitive)
+  const filteredPatients = useMemo(() => {
+    const term = normalizeString(patientSearch.trim());
+    if (!term) return patients;
+    const cleanSearchTerm = term.replace(/\D/g, '');
+
+    return patients.filter((p) => {
+      const patientNameNormalized = normalizeString(p.name);
+      const cleanCpf = (p.cpf || '').replace(/\D/g, '');
+      const cleanSus = (p.susCard || '').replace(/\D/g, '');
+
+      const nameMatch = patientNameNormalized.includes(term);
+      const cpfMatch = cleanSearchTerm && cleanCpf.includes(cleanSearchTerm);
+      const susMatch = cleanSearchTerm && cleanSus.includes(cleanSearchTerm);
+
+      return nameMatch || cpfMatch || susMatch;
+    });
+  }, [patients, patientSearch]);
+
+  const handleSelectPatient = (p: Patient) => {
+    setSelectedPatientId(p.id);
+    setPatientSearch(p.name);
+    setShowSuggestions(false);
+  };
 
   const selectedTrip = trips.find((t) => t.id === selectedTripId);
   const selectedPatient = patients.find((p) => p.id === selectedPatientId);
@@ -86,6 +108,10 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   useEffect(() => {
     if (selectedPatient) {
       setAppointmentType(selectedPatient.condition || 'Consulta Médica');
+      // Sync search input if it is empty and a patient is selected (e.g., on mount or preselection)
+      if (!patientSearch) {
+        setPatientSearch(selectedPatient.name);
+      }
       if (selectedPatient.companionRequired) {
         setCompanionIncluded(true);
         setCompanionName(selectedPatient.companionName || '');
@@ -97,17 +123,65 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
     }
   }, [selectedPatient]);
 
-  // When trip is selected, pick default destination
-  useEffect(() => {
-    if (selectedTrip && selectedTrip.destinationIds?.length > 0) {
-      setDestinationId(selectedTrip.destinationIds[0]);
-    }
-  }, [selectedTrip]);
+  // Available destinations for selected trip (either in destinationIds, matching by city, or matching by name, or fallback if small list)
+  const tripDestinations = useMemo(() => {
+    return destinations.filter((d) => {
+      if (!selectedTrip) return true;
+      
+      // Explicitly included in the trip
+      if (selectedTrip.destinationIds?.includes(d.id)) return true;
+      
+      // Matching trip hospital name
+      if (selectedTrip.destinationHospital && d.name.toLowerCase().trim() === selectedTrip.destinationHospital.toLowerCase().trim()) return true;
+      
+      // Matching trip city
+      const cleanTripCity = selectedTrip.destinationCity?.split('-')[0].trim().toLowerCase() || '';
+      if (cleanTripCity && d.city.toLowerCase().trim() === cleanTripCity) return true;
+      
+      // Default fallback to keep list reasonable
+      return destinations.length <= 15;
+    });
+  }, [destinations, selectedTrip]);
 
-  // Available destinations for selected trip
-  const tripDestinations = destinations.filter(
-    (d) => selectedTrip?.destinationIds?.includes(d.id) || destinations.length <= 6
-  );
+  // When trip is selected, pick default destination smartly
+  useEffect(() => {
+    if (selectedTrip) {
+      // 1. Try to find a destination matching the trip's destinationHospital name
+      if (selectedTrip.destinationHospital) {
+        const cleanTripHosp = selectedTrip.destinationHospital.toLowerCase().trim();
+        const foundByName = destinations.find(
+          (d) => d.name.toLowerCase().trim() === cleanTripHosp || cleanTripHosp.includes(d.name.toLowerCase().trim())
+        );
+        if (foundByName) {
+          setDestinationId(foundByName.id);
+          return;
+        }
+      }
+
+      // 2. Try to use the first destination in the trip's destinationIds list
+      if (selectedTrip.destinationIds && selectedTrip.destinationIds.length > 0) {
+        setDestinationId(selectedTrip.destinationIds[0]);
+        return;
+      }
+
+      // 3. Try to find any hospital in destinations that matches the trip's destinationCity
+      if (selectedTrip.destinationCity) {
+        const cleanTripCity = selectedTrip.destinationCity.split('-')[0].trim().toLowerCase();
+        const foundByCity = destinations.find(
+          (d) => d.city.toLowerCase().trim() === cleanTripCity
+        );
+        if (foundByCity) {
+          setDestinationId(foundByCity.id);
+          return;
+        }
+      }
+
+      // 4. Default to first available destination in the filtered list
+      if (tripDestinations.length > 0) {
+        setDestinationId(tripDestinations[0].id);
+      }
+    }
+  }, [selectedTrip, destinations, tripDestinations]);
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
@@ -325,17 +399,51 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                   type="text"
                   placeholder="Filtrar paciente por nome, CPF ou Cartão SUS..."
                   value={patientSearch}
-                  onChange={(e) => setPatientSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-emerald-600 text-xs"
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 250)}
+                  onChange={(e) => {
+                    setPatientSearch(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-emerald-600 text-xs font-semibold"
                 />
               </div>
+
+              {/* Sugestões de Autocomplete em Tempo Real */}
+              {showSuggestions && patientSearch.trim().length > 0 && (
+                <div className="absolute z-50 w-full bg-white border border-slate-200 mt-1 rounded-lg shadow-lg max-h-52 overflow-y-auto divide-y divide-slate-100">
+                  {filteredPatients.length === 0 ? (
+                    <div className="p-3 text-slate-500 text-center">Nenhum paciente encontrado</div>
+                  ) : (
+                    filteredPatients.slice(0, 10).map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleSelectPatient(p)}
+                        className="w-full text-left px-3.5 py-2 hover:bg-slate-50 transition-colors flex flex-col gap-0.5"
+                      >
+                        <span className="font-bold text-slate-800 text-xs">{p.name}</span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          CPF: {formatCPF(p.cpf)} | SUS: {formatSUS(p.susCard)}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Selecione o Paciente *</label>
               <select
                 value={selectedPatientId}
-                onChange={(e) => setSelectedPatientId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedPatientId(e.target.value);
+                  const found = patients.find(p => p.id === e.target.value);
+                  if (found) {
+                    setPatientSearch(found.name);
+                  }
+                }}
                 className={`w-full px-3 py-2 border rounded-lg bg-white text-slate-900 font-medium focus:outline-emerald-600 ${
                   errors.patient ? 'border-rose-500' : 'border-slate-300'
                 }`}

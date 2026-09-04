@@ -40,6 +40,18 @@ export const BpaExportView: React.FC<BpaExportViewProps> = ({
     return map;
   });
 
+  // Sync state if drivers prop updates
+  React.useEffect(() => {
+    const map: Record<string, { cns: string; cbo: string }> = {};
+    drivers.forEach(d => {
+      map[d.id] = {
+        cns: d.cns || '700000000000000',
+        cbo: d.cbo || '515125'
+      };
+    });
+    setSelectedDriverCnsMap(map);
+  }, [drivers]);
+
   const handleDriverChange = (driverId: string, field: 'cns' | 'cbo', val: string) => {
     setSelectedDriverCnsMap(prev => ({
       ...prev,

@@ -22,6 +22,8 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
   const [whatsapp, setWhatsapp] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
   const [notes, setNotes] = useState('');
+  const [cns, setCns] = useState('');
+  const [cbo, setCbo] = useState('515125'); // 5151-25 is Motorista de ambulância
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -36,6 +38,8 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
       setWhatsapp(driver.whatsapp || '');
       setStatus(driver.status);
       setNotes(driver.notes || '');
+      setCns(driver.cns || '');
+      setCbo(driver.cbo || '515125');
     }
   }, [driver]);
 
@@ -66,6 +70,8 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
       whatsapp: whatsapp.trim(),
       status,
       notes: notes.trim() || undefined,
+      cns: cns.trim() || undefined,
+      cbo: cbo.trim() || undefined,
     };
 
     onSave(driverData);
@@ -216,6 +222,36 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 />
                 {errors.cnhExpiration && <p className="text-xs text-rose-500 mt-1">{errors.cnhExpiration}</p>}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                  CNS (Cartão Nacional de Saúde / Motorista)
+                </label>
+                <input
+                  type="text"
+                  maxLength={15}
+                  value={cns}
+                  onChange={(e) => setCns(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  placeholder="000 0000 0000 0000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                  CBO (Classificação Brasileira de Ocupações)
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={cbo}
+                  onChange={(e) => setCbo(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  placeholder="Ex: 515125"
+                />
               </div>
             </div>
 
