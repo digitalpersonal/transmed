@@ -34,6 +34,7 @@ interface TripsViewProps {
   onOpenClosureModal: (trip: Trip) => void;
   onPrintClosure: (trip: Trip) => void;
   onPrintPassengerTicket: (trip: Trip, passengerId: string) => void;
+  onRemoveCompanion?: (tripId: string, passengerId: string) => void;
 }
 
 export const TripsView: React.FC<TripsViewProps> = ({
@@ -48,6 +49,7 @@ export const TripsView: React.FC<TripsViewProps> = ({
   onOpenClosureModal,
   onPrintClosure,
   onPrintPassengerTicket,
+  onRemoveCompanion,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('open');
@@ -374,13 +376,28 @@ export const TripsView: React.FC<TripsViewProps> = ({
                                   </td>
                                   <td className="py-2.5 px-3">
                                     {p.companionIncluded ? (
-                                      <div>
-                                        <span className="font-bold text-emerald-800 block">
-                                          {p.companionName}
-                                        </span>
-                                        <span className="text-[10px] text-slate-500">
-                                          {p.companionKinship || 'Acompanhante'}
-                                        </span>
+                                      <div className="flex items-start justify-between gap-1 group">
+                                        <div>
+                                          <span className="font-bold text-emerald-800 block">
+                                            {p.companionName}
+                                          </span>
+                                          <span className="text-[10px] text-slate-500">
+                                            {p.companionKinship || 'Acompanhante'}
+                                          </span>
+                                        </div>
+                                        {onRemoveCompanion && (
+                                          <button
+                                            onClick={() => {
+                                              if (confirm(`Remover acompanhante (${p.companionName}) do agendamento?`)) {
+                                                onRemoveCompanion(trip.id, p.id);
+                                              }
+                                            }}
+                                            className="text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-rose-50 transition-colors ml-1 cursor-pointer shrink-0"
+                                            title="Excluir acompanhante"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        )}
                                       </div>
                                     ) : (
                                       <span className="text-slate-400">Sem acompanhante</span>

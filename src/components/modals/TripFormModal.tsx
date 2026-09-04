@@ -117,8 +117,29 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
       });
     });
 
+    // Adiciona dinamicamente o hospital cadastrado na viagem (se existir e não estiver mapeado)
+    if (trip?.destinationHospital) {
+      const cleanHName = trip.destinationHospital.trim();
+      const cleanCityName = trip.destinationCity?.split('-')[0].trim() || 'Destino';
+      const exists = Array.from(hospitalMap.values()).some(
+        (h) => h.name.toLowerCase().trim() === cleanHName.toLowerCase()
+      );
+      if (!exists && cleanHName) {
+        const genId = `hosp-dyn-${cleanHName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        hospitalMap.set(genId, {
+          id: genId,
+          name: cleanHName,
+          city: cleanCityName,
+          state: 'MG',
+          address: `Unidade de Atendimento - ${cleanHName}`,
+          phone: '',
+          specialties: [],
+        });
+      }
+    }
+
     return Array.from(hospitalMap.values());
-  }, [destinations, cities]);
+  }, [destinations, cities, trip?.destinationHospital, trip?.destinationCity]);
 
   // 3. Filtra os hospitais pela cidade de destino selecionada
   const filteredHospitals = useMemo(() => {
@@ -141,7 +162,50 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
 
   useEffect(() => {
     if (trip) {
-      setFormData(trip);
+      // Find matches for city, driver, etc. to make sure dropdowns are perfectly pre-filled
+      let matchedCityLabel = trip.destinationCity || '';
+      if (trip.destinationCity) {
+        const cleanTripCity = trip.destinationCity.split('-')[0].trim().toLowerCase();
+        const found = allAvailableCities.find(c => 
+          c.cityOnly.toLowerCase() === cleanTripCity || 
+          c.label.toLowerCase() === trip.destinationCity.toLowerCase()
+        );
+        if (found) {
+          matchedCityLabel = found.label;
+        }
+      }
+
+      let matchedDriverId = trip.driverId || '';
+      if (!matchedDriverId && trip.driverName) {
+        const foundDriver = drivers.find(d => d.name.toLowerCase().trim() === trip.driverName.toLowerCase().trim());
+        if (foundDriver) {
+          matchedDriverId = foundDriver.id;
+        }
+      }
+
+      let matchedDestinationIds = trip.destinationIds || [];
+      if (trip.destinationHospital) {
+        const foundHosp = allAvailableHospitals.find(h => 
+          h.name.toLowerCase().trim() === trip.destinationHospital!.toLowerCase().trim()
+        );
+        if (foundHosp) {
+          if (!matchedDestinationIds.includes(foundHosp.id)) {
+            matchedDestinationIds = [...matchedDestinationIds, foundHosp.id];
+          }
+        }
+      }
+
+      setFormData({
+        ...trip,
+        destinationCity: matchedCityLabel,
+        driverId: matchedDriverId,
+        destinationIds: matchedDestinationIds,
+        originCity: trip.originCity || 'Município de Origem',
+        departureLocation: trip.departureLocation || 'Garagem Municipal da Saúde (Av. da Saúde, 250)',
+        estimatedReturnDate: trip.estimatedReturnDate || trip.departureDate || new Date().toISOString().slice(0, 10),
+        estimatedReturnTime: trip.estimatedReturnTime || '18:00',
+        passengers: ensurePassengerArray(trip.passengers),
+      });
     } else {
       const defaultVehicle = vehicles.find((v) => v.status === 'available') || vehicles[0];
       const defaultDriver = drivers.find((d) => d.status === 'active') || drivers[0];
@@ -156,7 +220,7 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
         destinationIds: (destinations || []).slice(0, 2).map((d) => d.id),
       }));
     }
-  }, [trip, vehicles, drivers, destinations]);
+  }, [trip, vehicles, drivers, destinations, allAvailableCities, allAvailableHospitals]);
 
   // When vehicle changes, we just update the vehicleId (driver is separate now)
   const handleVehicleChange = (vehId: string) => {

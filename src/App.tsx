@@ -531,6 +531,36 @@ export default function App() {
     showToast('Viagem excluída com sucesso.', 'info');
   };
 
+  const handleRemoveCompanion = (tripId: string, passengerId: string) => {
+    const tripToUpdate = trips.find(t => t.id === tripId);
+    if (!tripToUpdate) return;
+    
+    const updatedPassengers = ensurePassengerArray(tripToUpdate.passengers).map(p => {
+      if (p.id === passengerId || p.patientId === passengerId) {
+        return {
+          ...p,
+          companionIncluded: false,
+          companionName: '',
+          companionKinship: '',
+          companionCpf: '',
+          companionPhone: ''
+        };
+      }
+      return p;
+    });
+
+    const updatedTrip = {
+      ...tripToUpdate,
+      passengers: updatedPassengers
+    };
+
+    const updatedTrips = trips.map(t => t.id === tripId ? updatedTrip : t);
+    setTrips(updatedTrips);
+    saveTrips(updatedTrips);
+    upsertTripFirestore(updatedTrip).catch(() => {});
+    showToast('Acompanhante removido com sucesso!');
+  };
+
   // ==========================================
   // Booking Creation
   // ==========================================
@@ -932,6 +962,7 @@ export default function App() {
             }}
             onPrintClosure={triggerPrintClosure}
             onPrintPassengerTicket={triggerPrintPassengerTicket}
+            onRemoveCompanion={handleRemoveCompanion}
           />
         )}
 
