@@ -1,0 +1,161 @@
+{
+  "entities": {
+    "Patient": {
+      "title": "Patient",
+      "description": "Patient registered for TFD",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "cpf": { "type": "string", "maxLength": 20 },
+        "susCard": { "type": "string", "maxLength": 30 },
+        "rg": { "type": "string", "maxLength": 30 },
+        "birthDate": { "type": "string", "maxLength": 20 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "whatsapp": { "type": "string", "maxLength": 50 },
+        "emergencyPhone": { "type": "string", "maxLength": 50 },
+        "address": { "type": "string", "maxLength": 300 },
+        "boardingAddress": { "type": "string", "maxLength": 300 },
+        "neighborhood": { "type": "string", "maxLength": 100 },
+        "city": { "type": "string", "maxLength": 100 },
+        "condition": { "type": "string", "maxLength": 100 },
+        "mobility": { "type": "string", "maxLength": 50 },
+        "procedureTime": { "type": "string", "maxLength": 20 },
+        "companionRequired": { "type": "boolean" },
+        "companionName": { "type": "string", "maxLength": 200 },
+        "companionBirthDate": { "type": "string", "maxLength": 20 },
+        "companionCpf": { "type": "string", "maxLength": 20 },
+        "companionAddress": { "type": "string", "maxLength": 300 },
+        "companionKinship": { "type": "string", "maxLength": 50 },
+        "companionPhone": { "type": "string", "maxLength": 50 },
+        "companionReason": { "type": "string", "maxLength": 300 },
+        "bloodType": { "type": "string", "maxLength": 10 },
+        "allergies": { "type": "string", "maxLength": 200 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "name", "cpf", "susCard", "address", "neighborhood", "city", "condition", "mobility", "createdAt"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "TFD Fleet Vehicle",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "plate": { "type": "string", "maxLength": 20 },
+        "model": { "type": "string", "maxLength": 100 },
+        "brand": { "type": "string", "maxLength": 100 },
+        "year": { "type": "integer" },
+        "type": { "type": "string", "maxLength": 50 },
+        "maxCapacity": { "type": "integer" },
+        "wheelchairCapacity": { "type": "integer" },
+        "currentDriver": { "type": "string", "maxLength": 200 },
+        "driverPhone": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "maxLength": 30 },
+        "currentKm": { "type": "number" },
+        "fuelType": { "type": "string", "maxLength": 50 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "plate", "model", "brand", "type", "maxCapacity", "status"]
+    },
+    "Driver": {
+      "title": "Driver",
+      "description": "TFD Driver",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "cpf": { "type": "string", "maxLength": 20 },
+        "cnh": { "type": "string", "maxLength": 30 },
+        "cnhCategory": { "type": "string", "maxLength": 10 },
+        "cnhExpiration": { "type": "string", "maxLength": 20 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "whatsapp": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "maxLength": 20 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "name", "cpf", "cnh", "phone", "status"]
+    },
+    "Destination": {
+      "title": "Destination",
+      "description": "Hospital or Treatment Center Destination",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "city": { "type": "string", "maxLength": 100 },
+        "state": { "type": "string", "maxLength": 10 },
+        "address": { "type": "string", "maxLength": 300 },
+        "phone": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "name", "city", "state"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "Scheduled Transport Trip",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 50 },
+        "departureDate": { "type": "string", "maxLength": 20 },
+        "departureTime": { "type": "string", "maxLength": 10 },
+        "estimatedReturnDate": { "type": "string", "maxLength": 20 },
+        "estimatedReturnTime": { "type": "string", "maxLength": 10 },
+        "originCity": { "type": "string", "maxLength": 100 },
+        "destinationCity": { "type": "string", "maxLength": 100 },
+        "departureLocation": { "type": "string", "maxLength": 200 },
+        "vehicleId": { "type": "string", "maxLength": 128 },
+        "driverId": { "type": "string", "maxLength": 128 },
+        "driverName": { "type": "string", "maxLength": 200 },
+        "driverPhone": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "maxLength": 30 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "code", "departureDate", "departureTime", "vehicleId", "status"]
+    },
+    "Config": {
+      "title": "Config",
+      "description": "Municipal Settings",
+      "type": "object",
+      "properties": {
+        "municipalityName": { "type": "string", "maxLength": 200 },
+        "departmentName": { "type": "string", "maxLength": 200 },
+        "state": { "type": "string", "maxLength": 10 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "maxLength": 100 },
+        "address": { "type": "string", "maxLength": 300 },
+        "tfdCoordinator": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["municipalityName", "state"]
+    }
+  },
+  "firestore": {
+    "/patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Patients collection"
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Vehicles collection"
+    },
+    "/drivers/{driverId}": {
+      "schema": "Driver",
+      "description": "Drivers collection"
+    },
+    "/destinations/{destinationId}": {
+      "schema": "Destination",
+      "description": "Destinations collection"
+    },
+    "/trips/{tripId}": {
+      "schema": "Trip",
+      "description": "Trips collection"
+    },
+    "/config/municipal": {
+      "schema": "Config",
+      "description": "Municipal config document"
+    }
+  }
+}

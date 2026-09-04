@@ -1,0 +1,6 @@
+{
+  "name": "Sistema de Transporte de Pacientes (TFD)",
+  "description": "Sistema completo para gestão de transporte sanitário e TFD com controle de frota, lotação máxima, cadastro de pacientes e acompanhantes, emissão de comprovantes de agendamento, manifestos de viagem, fechamento e relatórios.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
