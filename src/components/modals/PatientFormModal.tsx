@@ -28,34 +28,41 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
   onSave,
   onClose,
 }) => {
-  const [formData, setFormData] = useState<Partial<Patient>>({
-    name: '',
-    cpf: '',
-    susCard: '',
-    rg: '',
-    birthDate: '',
-    phone: '',
-    whatsapp: '',
-    emergencyPhone: '',
-    address: '',
-    boardingAddress: '',
-    neighborhood: '',
-    city: 'Município de Origem',
-    condition: 'Consulta Médica',
-    mobility: 'Ambulante',
-    procedureTime: '08:00',
-    companionRequired: false,
-    companionName: '',
-    companionBirthDate: '',
-    companionCpf: '',
-    companionAddress: '',
-    companionKinship: '',
-    companionPhone: '',
-    companionReason: '',
-    bloodType: '',
-    allergies: '',
-    notes: '',
+  const [formData, setFormData] = useState<Partial<Patient>>(() => {
+    const saved = localStorage.getItem(`patient-form-${patient?.id || 'new'}`);
+    return saved ? JSON.parse(saved) : {
+      name: '',
+      cpf: '',
+      susCard: '',
+      rg: '',
+      birthDate: '',
+      phone: '',
+      whatsapp: '',
+      emergencyPhone: '',
+      address: '',
+      boardingAddress: '',
+      neighborhood: '',
+      city: 'Município de Origem',
+      condition: 'Consulta Médica',
+      mobility: 'Ambulante',
+      procedureTime: '08:00',
+      companionRequired: false,
+      companionName: '',
+      companionBirthDate: '',
+      companionCpf: '',
+      companionAddress: '',
+      companionKinship: '',
+      companionPhone: '',
+      companionReason: '',
+      bloodType: '',
+      allergies: '',
+      notes: '',
+    };
   });
+
+  useEffect(() => {
+    localStorage.setItem(`patient-form-${patient?.id || 'new'}`, JSON.stringify(formData));
+  }, [formData, patient]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -131,6 +138,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
       createdAt: patient?.createdAt || new Date().toISOString().slice(0, 10),
     };
 
+    localStorage.removeItem(`patient-form-${patient?.id || 'new'}`);
     onSave(patientToSave);
   };
 

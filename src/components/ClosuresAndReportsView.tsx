@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import { 
   FileCheck, 
   Printer, 
@@ -9,9 +11,10 @@ import {
   MapPin, 
   FileSpreadsheet,
   Bus,
-  Trash2
+  Trash2,
+  FileText
 } from 'lucide-react';
-import { DestinationHospital, MunicipalConfig, Patient, Trip, Vehicle } from '../types';
+import { DestinationHospital, MunicipalConfig, Patient, Trip, Vehicle, ensurePassengerArray } from '../types';
 import { exportClosuresReportToExcel } from '../utils/excel';
 import { formatDateBR, formatPlate } from '../utils/formatters';
 
@@ -35,9 +38,35 @@ export const ClosuresAndReportsView: React.FC<ClosuresAndReportsViewProps> = ({
   onDeleteTrip,
 }) => {
   const [selectedCity, setSelectedCity] = useState<string>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
   const [tripToDelete, setTripToDelete] = useState<Trip | null>(null);
 
   const completedTrips = useMemo(() => trips.filter((t) => t.status === 'completed' && t.closure), [trips]);
+
+  const generateMonthlyReport = () => {
+    const doc = new jsPDF();
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const filteredTrips = completedTrips.filter(t => {
+      const [tYear, tMonth] = t.departureDate.split('-').map(Number);
+      return tYear === year && tMonth === month;
+    });
+
+    // Grouping attendance by patient
+    const patientAttendance: Record<string, number> = {};
+    filteredTrips.forEach(t => {
+      ensurePassengerArray(t.passengers).forEach(p => {
+        const name = p.patientName;
+        patientAttendance[name] = (patientAttendance[name] || 0) + 1;
+      });
+    });
+
+    doc.text(`Relatório Mensal - ${month}/${year}`, 14, 15);
+    (doc as any).autoTable({
+      head: [['Paciente', 'Total de Atendimentos']],
+      body: Object.entries(patientAttendance),
+    });
+    doc.save(`Relatorio_Mensal_${selectedMonth}.pdf`);
+  };
 
   // Operational Aggregations
   const totalKmRun = useMemo(() => completedTrips.reduce((acc, t) => acc + (t.closure?.totalKm || 0), 0), [completedTrips]);
@@ -67,6 +96,19 @@ export const ClosuresAndReportsView: React.FC<ClosuresAndReportsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs"
+          />
+          <button
+            onClick={generateMonthlyReport}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Exportar Relatório Mensal</span>
+          </button>
           <button
             onClick={() => exportClosuresReportToExcel(trips, vehicles)}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"

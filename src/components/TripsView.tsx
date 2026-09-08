@@ -55,26 +55,40 @@ export const TripsView: React.FC<TripsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('open');
   const [expandedTripId, setExpandedTripId] = useState<string | null>(null);
   const [tripToDelete, setTripToDelete] = useState<Trip | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
 
-  const filteredTrips = useMemo(() => trips.filter((t) => {
-    const term = searchTerm.toLowerCase().trim();
-    const matchSearch =
-      !term ||
-      (t.code || '').toLowerCase().includes(term) ||
-      (t.destinationCity || '').toLowerCase().includes(term) ||
-      (t.driverName || '').toLowerCase().includes(term) ||
-      (t.departureLocation || '').toLowerCase().includes(term) ||
-      ensurePassengerArray(t.passengers).some((p) => (p.patientName || '').toLowerCase().includes(term));
+  const filteredTrips = useMemo(() => {
+    const filtered = trips.filter((t) => {
+      const term = searchTerm.toLowerCase().trim();
+      const matchSearch =
+        !term ||
+        (t.code || '').toLowerCase().includes(term) ||
+        (t.destinationCity || '').toLowerCase().includes(term) ||
+        (t.driverName || '').toLowerCase().includes(term) ||
+        (t.departureLocation || '').toLowerCase().includes(term) ||
+        ensurePassengerArray(t.passengers).some((p) => (p.patientName || '').toLowerCase().includes(term));
 
-    let matchStatus = false;
-    if (statusFilter === 'all') matchStatus = true;
-    else if (statusFilter === 'open') matchStatus = t.status === 'scheduled' || t.status === 'in_route';
-    else matchStatus = t.status === statusFilter;
-    
-    return matchSearch && matchStatus;
-  }), [trips, searchTerm, statusFilter]);
+      let matchStatus = false;
+      if (statusFilter === 'all') matchStatus = true;
+      else if (statusFilter === 'open') matchStatus = t.status === 'scheduled' || t.status === 'in_route';
+      else matchStatus = t.status === statusFilter;
+      
+      return matchSearch && matchStatus;
+    });
 
-  const displayedTrips = useMemo(() => filteredTrips.slice(0, 30), [filteredTrips]);
+    return filtered.sort((a, b) => {
+      if (a.departureDate === b.departureDate) {
+        return (a.departureTime || '').localeCompare(b.departureTime || '');
+      }
+      return (a.departureDate || '').localeCompare(b.departureDate || '');
+    });
+  }, [trips, searchTerm, statusFilter]);
+
+  const totalPages = Math.ceil(filteredTrips.length / PAGE_SIZE);
+  const displayedTrips = useMemo(() => 
+    filteredTrips.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE), 
+  [filteredTrips, currentPage]);
 
   const toggleExpand = (tripId: string) => {
     setExpandedTripId((prev) => (prev === tripId ? null : tripId));
@@ -149,12 +163,19 @@ export const TripsView: React.FC<TripsViewProps> = ({
             const occupancyPercent = maxCap > 0 ? Math.round((totalPass / maxCap) * 100) : 0;
             const statusBadge = getTripStatusLabel(trip.status);
             const isExpanded = expandedTripId === trip.id;
+            const isToday = trip.departureDate === new Date().toISOString().slice(0, 10);
 
             return (
               <div
                 key={trip.id}
-                className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-shadow"
+                className={`bg-white rounded-xl border ${isToday ? 'border-amber-400 ring-1 ring-amber-400' : 'border-slate-200'} overflow-hidden shadow-xs hover:shadow-md transition-shadow`}
               >
+                {isToday && (
+                  <div className="flex items-center gap-1.5 text-amber-700 text-[10px] font-bold uppercase bg-amber-50 px-5 py-1.5 border-b border-amber-200">
+                    <Calendar className="w-3 h-3" />
+                    Viagem programada para HOJE
+                  </div>
+                )}
                 {/* Header Card da Viagem */}
                 <div className="p-5 space-y-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -455,9 +476,27 @@ export const TripsView: React.FC<TripsViewProps> = ({
             );
           })
         )}
-        {filteredTrips.length > 30 && (
-          <div className="bg-slate-50 border border-slate-200 p-3 text-center text-xs text-slate-500 font-medium rounded-xl">
-            Exibindo as primeiras 30 viagens de {filteredTrips.length} encontradas. Utilize a busca ou os filtros para resultados específicos.
+        {filteredTrips.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-xl">
+            <span className="text-xs text-slate-500 font-medium">
+              Exibindo {(currentPage - 1) * PAGE_SIZE + 1} - {Math.min(currentPage * PAGE_SIZE, filteredTrips.length)} de {filteredTrips.length} viagens
+            </span>
+            <div className="flex gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-50 cursor-pointer"
+              >
+                Anterior
+              </button>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-50 cursor-pointer"
+              >
+                Próxima
+              </button>
+            </div>
           </div>
         )}
       </div>

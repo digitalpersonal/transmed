@@ -14,7 +14,8 @@ import {
   TrendingUp, 
   ShieldCheck, 
   FileCheck,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Trash2
 } from 'lucide-react';
 import { DestinationHospital, MunicipalConfig, Patient, Trip, Vehicle, ensurePassengerArray } from '../types';
 import { formatDateBR, formatPlate, getTripStatusLabel, getVehicleTypeLabel } from '../utils/formatters';
@@ -32,6 +33,7 @@ interface DashboardViewProps {
   onOpenImportExcelModal: () => void;
   onPrintManifest: (trip: Trip) => void;
   onOpenClosureModal: (trip: Trip) => void;
+  onClearSystem: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -47,6 +49,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenImportExcelModal,
   onPrintManifest,
   onOpenClosureModal,
+  onClearSystem,
 }) => {
   const scheduledTrips = useMemo(() => trips.filter((t) => t.status === 'scheduled' || t.status === 'in_route'), [trips]);
   const completedTrips = useMemo(() => trips.filter((t) => t.status === 'completed'), [trips]);
@@ -109,6 +112,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             >
               <FileSpreadsheet className="w-4 h-4" />
               Importar Planilha Excel
+            </button>
+            <button
+              onClick={onClearSystem}
+              className="flex items-center gap-2 px-3.5 py-2 bg-rose-900/80 hover:bg-rose-800 text-rose-200 rounded-lg text-xs font-bold border border-rose-500/40 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+              Limpar Tudo
             </button>
           </div>
         </div>
@@ -237,6 +247,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             ) : (
               scheduledTrips.map((trip) => {
+                const isToday = trip.departureDate === new Date().toISOString().slice(0, 10);
                 const vehicle = vehicles.find((v) => v.id === trip.vehicleId);
                 const maxCap = vehicle?.maxCapacity || 16;
                 const passList = ensurePassengerArray(trip.passengers);
@@ -248,8 +259,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 return (
                   <div
                     key={trip.id}
-                    className="p-4 bg-white rounded-xl border border-slate-200 hover:shadow-md transition-shadow space-y-3"
+                    className={`p-4 bg-white rounded-xl border ${isToday ? 'border-amber-400 ring-1 ring-amber-400' : 'border-slate-200'} hover:shadow-md transition-shadow space-y-3`}
                   >
+                    {isToday && (
+                      <div className="flex items-center gap-1.5 text-amber-700 text-[10px] font-bold uppercase mb-2 bg-amber-50 px-2 py-1 rounded">
+                        <Calendar className="w-3 h-3" />
+                        Viagem programada para HOJE
+                      </div>
+                    )}
                     {/* Linha Superior */}
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="flex items-start gap-3">

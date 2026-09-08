@@ -366,7 +366,7 @@ export const INITIAL_TRIPS: Trip[] = [
     status: 'scheduled',
     destinationIds: ['dest-1', 'dest-5'],
     notes: 'Viagem com paradas no Hospital das Clínicas da Unicamp e Centro de Hemodiálise.',
-    createdAt: '2026-08-15',
+    createdAt: '2026-08-14',
     passengers: [
       {
         id: 'pass-101',
@@ -390,7 +390,7 @@ export const INITIAL_TRIPS: Trip[] = [
         companionSeatNumber: 2,
         status: 'confirmed',
         notes: 'Consulta com Dr. Arnaldo no ambulatório de oncologia.',
-        bookedAt: '2026-08-15 09:30',
+        bookedAt: '2026-08-14 09:30',
       },
       {
         id: 'pass-102',
@@ -410,7 +410,7 @@ export const INITIAL_TRIPS: Trip[] = [
         seatNumber: 3,
         status: 'confirmed',
         notes: 'Turno da manhã de hemodiálise (07h30 às 11h30).',
-        bookedAt: '2026-08-16 10:15',
+        bookedAt: '2026-08-14 10:15',
       },
       {
         id: 'pass-103',
@@ -434,16 +434,16 @@ export const INITIAL_TRIPS: Trip[] = [
         companionSeatNumber: 5,
         status: 'confirmed',
         notes: 'Apresentar jejum de 8 horas e exames de risco cirúrgico.',
-        bookedAt: '2026-08-16 14:20',
+        bookedAt: '2026-08-14 14:20',
       },
     ],
   },
   {
     id: 'trip-2',
     code: 'V-260820-01',
-    departureDate: '2026-08-20',
+    departureDate: '2026-08-19',
     departureTime: '04:00',
-    estimatedReturnDate: '2026-08-20',
+    estimatedReturnDate: '2026-08-19',
     estimatedReturnTime: '20:00',
     originCity: 'Município de Origem',
     destinationCity: 'São Paulo - SP',
@@ -454,7 +454,7 @@ export const INITIAL_TRIPS: Trip[] = [
     status: 'scheduled',
     destinationIds: ['dest-3', 'dest-6'],
     notes: 'Micro-ônibus adaptado para pacientes com consultas em São Paulo e AACD.',
-    createdAt: '2026-08-16',
+    createdAt: '2026-08-14',
     passengers: [
       {
         id: 'pass-201',
@@ -478,7 +478,7 @@ export const INITIAL_TRIPS: Trip[] = [
         companionSeatNumber: 2,
         status: 'confirmed',
         notes: 'Necessita uso do elevador hidráulico para embarque da cadeira de rodas.',
-        bookedAt: '2026-08-16 11:00',
+        bookedAt: '2026-08-14 11:00',
       },
       {
         id: 'pass-202',

@@ -41,6 +41,8 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [conditionFilter, setConditionFilter] = useState<string>('all');
   const [companionFilter, setCompanionFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   // Helper to normalize Portuguese diacritics / accents
   const normalizeString = (str: string): string => {
@@ -73,7 +75,10 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
     return matchSearch && matchCondition && matchCompanion;
   }), [patients, searchTerm, conditionFilter, companionFilter]);
 
-  const displayedPatients = useMemo(() => filteredPatients.slice(0, 50), [filteredPatients]);
+  const totalPages = Math.ceil(filteredPatients.length / PAGE_SIZE);
+  const displayedPatients = useMemo(() => 
+    filteredPatients.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE), 
+  [filteredPatients, currentPage]);
 
   return (
     <div className="space-y-6">
@@ -339,9 +344,27 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
               )}
             </tbody>
           </table>
-          {filteredPatients.length > 50 && (
-            <div className="bg-slate-50 border-t border-slate-200 p-3 text-center text-xs text-slate-500 font-medium">
-              Exibindo os primeiros 50 resultados de {filteredPatients.length} encontrados. Utilize a busca para encontrar pacientes específicos.
+          {filteredPatients.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between bg-slate-50 border-t border-slate-200 p-3">
+              <span className="text-xs text-slate-500 font-medium">
+                Exibindo {(currentPage - 1) * PAGE_SIZE + 1} - {Math.min(currentPage * PAGE_SIZE, filteredPatients.length)} de {filteredPatients.length} pacientes
+              </span>
+              <div className="flex gap-2">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-50 cursor-pointer"
+                >
+                  Anterior
+                </button>
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-50 cursor-pointer"
+                >
+                  Próxima
+                </button>
+              </div>
             </div>
           )}
         </div>

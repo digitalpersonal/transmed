@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Bus, 
   Users, 
@@ -15,7 +15,9 @@ import {
   UserCircle2,
   MapPin,
   FileText,
-  LogOut
+  LogOut,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { MunicipalConfig } from '../types';
 
@@ -35,6 +37,30 @@ interface NavbarProps {
   currentUserEmail?: string | null;
   onLogout?: () => void;
 }
+
+const ConnectionStatus = () => {
+  const [isConnected, setIsConnected] = useState(window.navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsConnected(true);
+    const handleOffline = () => setIsConnected(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  return (
+    <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${isConnected ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'}`}>
+      {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+      {isConnected ? 'Online' : 'Offline'}
+    </div>
+  );
+};
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
@@ -76,6 +102,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-bold rounded border border-emerald-500/30">
                 TFD & TRANSPORTE
               </span>
+              <ConnectionStatus />
             </div>
             <p className="text-xs text-slate-400 font-medium">{config.departmentName}</p>
           </div>

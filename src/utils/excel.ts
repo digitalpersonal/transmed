@@ -475,8 +475,9 @@ export async function parseExcelCapturedRows(file: File): Promise<{
           let dataViagem = parseDateValue(rawDataViagem);
           
           if (!dataViagem) {
-            // Se não encontrou uma data de viagem válida, assume a data atual
-            dataViagem = new Date().toISOString().slice(0, 10);
+            // Se não encontrou uma data de viagem válida, assume a data atual no timezone local
+            const now = new Date();
+            dataViagem = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
           }
 
           // 1. HORARIO_PROCEDIMENTO

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, UserCheck, Lock, Mail, UserPlus, Shield, Trash2, LogOut, CheckCircle2 } from 'lucide-react';
 import { SystemUser } from '../../types';
-import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, User } from '../../lib/firebase';
-import { subscribeToUsers, upsertUserFirestore, deleteUserFirestore } from '../../lib/firestoreSync';
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword as createSecondaryUser, signOut as signSecondaryOut } from 'firebase/auth';
-import firebaseConfig from '../../../firebase-applet-config.json';
+import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, User } from '../../lib/supabase';
+import { subscribeToUsers, upsertUserFirestore, deleteUserFirestore } from '../../lib/supabaseSync';
+import { createClient } from '@supabase/supabase-js';
+import config from '../../lib/supabase-config.json';
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -53,14 +52,48 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       showToast('Login de Administrador realizado com sucesso!');
     } catch (err: any) {
       console.error('Login error:', err);
-      // If user doesn't exist yet in Auth, try creating it automatically for convenience
-      try {
-        await createUserWithEmailAndPassword(auth, email.trim(), password);
-        showToast('Conta de Administrador criada e logada com sucesso!');
-      } catch (createErr: any) {
-        setAuthError('Erro ao autenticar. Verifique se o provedor de E-mail/Senha está ativado no console do Firebase ou se a senha está correta.');
-        showToast('Erro de autenticação.', 'error');
+      const errMsg = err.message || String(err);
+      
+      if (errMsg.includes('Email not confirmed')) {
+        setAuthError(
+          'Este e-mail ainda não está confirmado. IMPORTANTE: Vá no seu painel do Supabase > Authentication > Providers > Email e DESATIVE a opção "Confirm email" para conseguir logar imediatamente sem confirmação!'
+        );
+        showToast('Confirmação de e-mail pendente no Supabase.', 'error');
+        setIsLoggingIn(false);
+        return;
       }
+
+      if (errMsg.includes('Invalid login credentials') && email.trim() === 'digitalpersonal@gmail.com') {
+        // Fallback or attempt auto-creation
+        try {
+          await createUserWithEmailAndPassword(auth, email.trim(), password);
+          showToast('Conta de Administrador criada e logada com sucesso!');
+          setIsLoggingIn(false);
+          return;
+        } catch (createErr: any) {
+          console.error('Fallback create error:', createErr);
+          const createErrMsg = createErr.message || String(createErr);
+          if (createErrMsg.includes('security purposes') || createErrMsg.includes('50 seconds') || createErrMsg.includes('rate limit')) {
+            setAuthError(
+              'As credenciais são inválidas. Tentei criar a conta padrão automaticamente, mas o Supabase bloqueou temporariamente por limite de tempo. Por favor, crie o usuário digitalpersonal@gmail.com manualmente no console do Supabase (Authentication > Add User)!'
+            );
+            showToast('Aguarde para tentar novamente ou crie no painel.', 'error');
+            setIsLoggingIn(false);
+            return;
+          }
+          if (createErrMsg.includes('Email not confirmed')) {
+            setAuthError(
+              'A conta de administrador foi pré-criada, mas requer confirmação. IMPORTANTE: Vá no console do Supabase > Authentication > Providers > Email e DESATIVE a opção "Confirm email" para logar!'
+            );
+            showToast('Desative a confirmação de e-mail no Supabase.', 'warning');
+            setIsLoggingIn(false);
+            return;
+          }
+        }
+      }
+      
+      setAuthError(`Erro ao autenticar: ${errMsg}. Verifique as credenciais ou se o usuário existe no Supabase.`);
+      showToast('Erro de autenticação.', 'error');
     } finally {
       setIsLoggingIn(false);
     }
@@ -83,19 +116,23 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     }
 
     try {
-      // Use a secondary Firebase Auth instance so the logged-in admin is not signed out
-      const apps = getApps();
-      let secondaryApp = apps.find(a => a.name === 'SecondaryAdminCreator');
-      if (!secondaryApp) {
-        secondaryApp = initializeApp(firebaseConfig, 'SecondaryAdminCreator');
-      }
-      const secondaryAuth = getSecondaryAuth(secondaryApp);
+      // Create a secondary Supabase client so the logged-in admin is not signed out
+      const secondarySupabase = createClient(config.supabaseUrl, config.supabaseKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      });
       
       // Create user in secondary auth
-      await createSecondaryUser(secondaryAuth, newEmail.trim(), newPassword);
-      await signSecondaryOut(secondaryAuth);
+      const { data, error } = await secondarySupabase.auth.signUp({
+        email: newEmail.trim(),
+        password: newPassword,
+      });
+      if (error) throw error;
 
-      // Save in Firestore
+      // Save in users table
       const newUser: SystemUser = {
         id: `usr-${Date.now()}`,
         email: newEmail.trim(),
@@ -110,7 +147,13 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       setNewPassword('');
     } catch (err: any) {
       console.error(err);
-      showToast(`Erro ao criar usuário: ${err.message}`, 'error');
+      let errMsg = err.message || String(err);
+      if (errMsg.includes('security purposes') || errMsg.includes('50 seconds') || errMsg.includes('rate limit')) {
+        errMsg = 'O Supabase limita a criação de novos acessos por e-mail a 1 por minuto por segurança. Por favor, aguarde 50 segundos ou crie este usuário manualmente no console do Supabase (Authentication > Users > Add User).';
+      } else if (errMsg.includes('Email not confirmed')) {
+        errMsg = 'O usuário foi registrado, mas precisa confirmar o e-mail. Para evitar isso, desative "Confirm email" nas configurações do seu Supabase > Authentication > Providers > Email.';
+      }
+      showToast(`Erro ao criar usuário: ${errMsg}`, 'error');
     }
   };
 

@@ -154,6 +154,15 @@ export function saveTrips(trips: Trip[]): void {
   }
 }
 
+export function clearTrips(): void {
+  try {
+    safeSetItem(STORAGE_KEYS.TRIPS, JSON.stringify([]));
+    safeSetItem(STORAGE_KEYS.DELETED_TRIPS, JSON.stringify([]));
+  } catch (e) {
+    console.error('Error clearing trips', e);
+  }
+}
+
 export function getStoredDestinations(): DestinationHospital[] {
   try {
     const data = safeGetItem(STORAGE_KEYS.DESTINATIONS);
