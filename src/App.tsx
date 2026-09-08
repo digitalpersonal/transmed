@@ -1073,35 +1073,37 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans">
-      {/* Top Bar Navigation */}
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        config={config}
-        onOpenNewBookingModal={() => {
-          setPreselectedTripId(undefined);
-          setPreselectedPatientId(undefined);
-          setIsBookingModalOpen(true);
-        }}
-        onOpenNewTripModal={() => {
-          setEditingTrip(null);
-          setIsTripModalOpen(true);
-        }}
-        onOpenNewPatientModal={() => {
-          setEditingPatient(null);
-          setIsPatientModalOpen(true);
-        }}
-        onOpenImportExcelModal={() => setIsExcelImportModalOpen(true)}
-        onOpenConfigModal={() => setIsConfigModalOpen(true)}
-        onOpenUserModal={() => setIsUserModalOpen(true)}
-        isAdmin={isAdmin}
-        currentUserEmail={currentUser.email}
-        onLogout={() => signOut(auth)}
-      />
+    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans print:min-h-0 print:bg-white print:block">
+      {/* Container principal que some por completo na impressao */}
+      <div className="flex-1 flex flex-col print:hidden">
+        {/* Top Bar Navigation */}
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          config={config}
+          onOpenNewBookingModal={() => {
+            setPreselectedTripId(undefined);
+            setPreselectedPatientId(undefined);
+            setIsBookingModalOpen(true);
+          }}
+          onOpenNewTripModal={() => {
+            setEditingTrip(null);
+            setIsTripModalOpen(true);
+          }}
+          onOpenNewPatientModal={() => {
+            setEditingPatient(null);
+            setIsPatientModalOpen(true);
+          }}
+          onOpenImportExcelModal={() => setIsExcelImportModalOpen(true)}
+          onOpenConfigModal={() => setIsConfigModalOpen(true)}
+          onOpenUserModal={() => setIsUserModalOpen(true)}
+          isAdmin={isAdmin}
+          currentUserEmail={currentUser.email}
+          onLogout={() => signOut(auth)}
+        />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 print:hidden">
         {/* Toast Alert */}
         {toast && (
           <div
@@ -1310,7 +1312,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-4 mt-auto print:hidden">
+      <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-4 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-2">
           <div>
             <span className="font-bold text-slate-300">Sistema TFD</span> — Transporte Fora do Domicílio e Pacientes SUS
@@ -1320,6 +1322,12 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Footer 2 */}
+      <footer className="py-6 bg-slate-900 text-slate-400 text-center text-xs border-t border-slate-800">
+        <p>desenvolvido por Silvio T. de Sá Filho - Chefe do CPD 2026</p>
+      </footer>
+      </div>
 
       {/* ================= MODALS ================= */}
 
@@ -1483,10 +1491,6 @@ export default function App() {
         />
       )}
 
-      {/* Footer */}
-      <footer className="print:hidden py-6 bg-slate-900 text-slate-400 text-center text-xs border-t border-slate-800 mt-auto">
-        <p>desenvolvido por Silvio T. de Sá Filho - Chefe do CPD 2026</p>
-      </footer>
     </div>
   );
 }

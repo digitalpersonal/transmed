@@ -57,30 +57,20 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   };
 
   const validate = (): boolean => {
-    const errs: Record<string, string> = {};
-    if (!formData.plate?.trim()) errs.plate = 'Placa é obrigatória';
-    if (!formData.model?.trim()) errs.model = 'Modelo do veículo é obrigatório';
-    if (!formData.brand?.trim()) errs.brand = 'Marca/Fabricante é obrigatória';
-    if (!formData.maxCapacity || formData.maxCapacity < 1) {
-      errs.maxCapacity = 'Lotação máxima deve ser no mínimo 1 lugar';
-    }
-
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
+    return true;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
 
     const vehicleToSave: Vehicle = {
       id: vehicle?.id || `veh-${Date.now()}`,
-      plate: (formData.plate || '').toUpperCase().trim(),
-      model: formData.model!.trim(),
-      brand: formData.brand!.trim(),
+      plate: (formData.plate || '').toUpperCase().trim() || 'SEM PLACA',
+      model: (formData.model || '').trim() || 'Sem Modelo',
+      brand: (formData.brand || '').trim() || 'Sem Marca',
       year: Number(formData.year) || new Date().getFullYear(),
       type: formData.type || 'van',
-      maxCapacity: Number(formData.maxCapacity),
+      maxCapacity: Number(formData.maxCapacity) || 16,
       wheelchairCapacity: Number(formData.wheelchairCapacity) || 0,
       currentDriver: formData.currentDriver?.trim() || 'Motorista da Escala',
       driverPhone: formData.driverPhone?.trim() || '',
@@ -122,10 +112,9 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 text-slate-800 max-h-[80vh] overflow-y-auto space-y-4 text-xs">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Placa do Veículo *</label>
+              <label className="block font-semibold text-slate-700 mb-1">Placa do Veículo</label>
               <input
                 type="text"
-                required
                 placeholder="Ex: ABC-1234 ou ABC1D23"
                 value={formData.plate || ''}
                 onChange={(e) => setFormData({ ...formData, plate: e.target.value.toUpperCase() })}
@@ -137,10 +126,9 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Marca / Fabricante *</label>
+              <label className="block font-semibold text-slate-700 mb-1">Marca / Fabricante</label>
               <input
                 type="text"
-                required
                 placeholder="Ex: Renault, Fiat, Marcopolo..."
                 value={formData.brand || ''}
                 onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
@@ -163,10 +151,9 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">Modelo Completo do Veículo *</label>
+            <label className="block font-semibold text-slate-700 mb-1">Modelo Completo do Veículo</label>
             <input
               type="text"
-              required
               placeholder="Ex: Master Minibus Executiva 16L, Ducato Maxi Passageiro..."
               value={formData.model || ''}
               onChange={(e) => setFormData({ ...formData, model: e.target.value })}
@@ -179,7 +166,7 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Tipo de Veículo *</label>
+              <label className="block font-semibold text-slate-700 mb-1">Tipo de Veículo</label>
               <select
                 value={formData.type || 'van'}
                 onChange={(e) => handleTypeChange(e.target.value as VehicleType)}
@@ -215,23 +202,19 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block font-bold text-slate-800 mb-1">
-                  Lotação Máxima de Passageiros Sentados *
+                  Lotação Máxima de Passageiros Sentados
                 </label>
                 <input
                   type="number"
-                  required
                   min={1}
                   max={60}
                   value={formData.maxCapacity || 16}
                   onChange={(e) => setFormData({ ...formData, maxCapacity: Number(e.target.value) })}
-                  className={`w-full px-3 py-2 border rounded-lg bg-white text-slate-900 text-base font-black focus:outline-sky-600 ${
-                    errors.maxCapacity ? 'border-rose-500' : 'border-sky-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg bg-white text-slate-900 text-base font-black focus:outline-sky-600 border-sky-300`}
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
                   Capacidade máxima permitida para agendamento seguro sem superlotação.
                 </p>
-                {errors.maxCapacity && <p className="text-rose-500 text-[11px] mt-0.5">{errors.maxCapacity}</p>}
               </div>
 
               <div>

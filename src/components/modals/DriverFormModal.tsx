@@ -45,23 +45,12 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: Record<string, string> = {};
 
-    if (!name.trim()) newErrors.name = 'Nome é obrigatório';
-    if (!cpf.trim()) newErrors.cpf = 'CPF é obrigatório';
-    if (!cnh.trim()) newErrors.cnh = 'CNH é obrigatória';
-    if (!cnhCategory.trim()) newErrors.cnhCategory = 'Categoria da CNH é obrigatória';
-    if (!cnhExpiration.trim()) newErrors.cnhExpiration = 'Validade da CNH é obrigatória';
-    if (!phone.trim()) newErrors.phone = 'Telefone é obrigatório';
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+    const finalName = name.trim() || 'Motorista Sem Nome';
 
     const driverData = {
       ...(driver && { id: driver.id, createdAt: driver.createdAt }),
-      name: name.trim(),
+      name: finalName,
       cpf: cpf.trim(),
       cnh: cnh.trim(),
       cnhCategory: cnhCategory.trim(),
@@ -108,7 +97,7 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="col-span-1 md:col-span-2">
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
-                  Nome Completo *
+                  Nome Completo
                 </label>
                 <input
                   type="text"
@@ -117,12 +106,11 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   placeholder="Nome do motorista"
                 />
-                {errors.name && <p className="text-xs text-rose-500 mt-1">{errors.name}</p>}
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
-                  CPF *
+                  CPF
                 </label>
                 <input
                   type="text"
@@ -131,12 +119,11 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   placeholder="000.000.000-00"
                 />
-                {errors.cpf && <p className="text-xs text-rose-500 mt-1">{errors.cpf}</p>}
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
-                  Telefone *
+                  Telefone
                 </label>
                 <input
                   type="text"
@@ -145,7 +132,6 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   placeholder="(00) 00000-0000"
                 />
-                {errors.phone && <p className="text-xs text-rose-500 mt-1">{errors.phone}</p>}
               </div>
 
               <div>
@@ -179,7 +165,7 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
             <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-1">
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
-                  CNH *
+                  CNH
                 </label>
                 <input
                   type="text"
@@ -188,12 +174,11 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   placeholder="Número da CNH"
                 />
-                {errors.cnh && <p className="text-xs text-rose-500 mt-1">{errors.cnh}</p>}
               </div>
 
               <div className="md:col-span-1">
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
-                  Categoria *
+                  Categoria
                 </label>
                 <select
                   value={cnhCategory}
@@ -213,7 +198,7 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
 
               <div className="md:col-span-1">
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
-                  Validade CNH *
+                  Validade CNH
                 </label>
                 <input
                   type="date"
@@ -221,7 +206,6 @@ export const DriverFormModal: React.FC<DriverFormModalProps> = ({
                   onChange={(e) => setCnhExpiration(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 />
-                {errors.cnhExpiration && <p className="text-xs text-rose-500 mt-1">{errors.cnhExpiration}</p>}
               </div>
             </div>
 

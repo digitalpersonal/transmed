@@ -75,10 +75,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const term = searchTerm.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     return scheduledTrips.filter((t) => {
       const city = (t.destinationCity || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const hospital = (t.destinationHospital || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const resolvedHosp = t.destinationHospital || (
+        t.destinationIds && t.destinationIds.length > 0
+          ? destinations.find(d => d.id === t.destinationIds[0])?.name
+          : ''
+      );
+      const hospital = (resolvedHosp || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return city.includes(term) || hospital.includes(term);
     });
-  }, [scheduledTrips, searchTerm]);
+  }, [scheduledTrips, searchTerm, destinations]);
 
   const completedTrips = useMemo(() => {
     return trips
@@ -328,6 +333,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 const occupancyPercent = maxCap > 0 ? Math.round((totalPass / maxCap) * 100) : 0;
                 const statusBadge = getTripStatusLabel(trip.status);
 
+                const resolvedHosp = trip.destinationHospital || (
+                  trip.destinationIds && trip.destinationIds.length > 0
+                    ? destinations.find(d => d.id === trip.destinationIds[0])?.name
+                    : undefined
+                );
+
                 return (
                   <div
                     key={trip.id}
@@ -348,9 +359,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-black text-slate-900 text-sm">{trip.destinationCity}</span>
-                            {trip.destinationHospital && trip.destinationHospital !== trip.destinationCity && (
+                            {resolvedHosp && resolvedHosp !== trip.destinationCity && (
                               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
-                                {trip.destinationHospital}
+                                {resolvedHosp}
                               </span>
                             )}
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusBadge.bg}`}>
@@ -359,9 +370,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           </div>
                           <p className="text-xs text-slate-500 mt-0.5">
                             Saída: <strong>{formatDateBR(trip.departureDate)}</strong> às <strong>{trip.departureTime}</strong> • {trip.departureLocation}
-                            {trip.destinationHospital && (
+                            {resolvedHosp && (
                               <span className="block text-[11px] text-emerald-800 font-medium mt-0.5">
-                                Destino: {trip.destinationHospital}
+                                Destino: {resolvedHosp}
                               </span>
                             )}
                           </p>
@@ -375,6 +386,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </span>
                       </div>
                     </div>
+
+                    {/* Roteiro de Paradas */}
+                    {passList.length > 0 && (
+                      <div className="bg-emerald-50/40 p-2.5 rounded-lg border border-emerald-100/80 flex flex-wrap gap-2 items-center text-[11px]">
+                        <span className="text-emerald-800 font-bold flex items-center gap-1 shrink-0">
+                          <MapPin className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                          <span>Roteiro de Paradas (Hospitais/Clínicas):</span>
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          {Array.from(new Set(passList.map(p => p.destinationName).filter(Boolean))).map((dest, idx) => (
+                            <span key={idx} className="px-2 py-0.5 bg-white border border-emerald-200 rounded text-emerald-900 font-semibold text-[10px] shadow-2xs">
+                              🏥 {dest}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Barra de Progresso de Lotação */}
                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
@@ -404,7 +432,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <span className="text-slate-400 font-semibold mr-1">Passageiros:</span>
                           {passList.map((p) => (
                             <span key={p.id} className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-slate-700 font-medium shrink-0">
-                              <span>{(p.patientName || '').split(' ')[0]} {(p.patientName || '').split(' ')[1] || ''}</span>
+                              <span>
+                                {(p.patientName || '').split(' ')[0]} {(p.patientName || '').split(' ')[1] || ''}
+                                <span className="text-emerald-700 font-bold ml-1 text-[10px]">({p.destinationName || 'Não Informado'})</span>
+                              </span>
                               {p.companionIncluded && <span className="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-1 py-0.2 rounded">(+1 Acomp)</span>}
                               <button
                                 type="button"

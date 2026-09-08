@@ -1,6 +1,16 @@
 @import "tailwindcss";
 
 @media print {
+  html, body, #root {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
   body {
     background-color: #ffffff !important;
     color: #000000 !important;
@@ -14,5 +24,24 @@
 
   .print\:hidden {
     display: none !important;
+  }
+
+  /* Force modal backdrop and content wrapper to print cleanly as block elements */
+  .fixed.inset-0.z-50 {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Reset layout constraints on standard containers to prevent extra pages */
+  .min-h-screen {
+    min-height: 0 !important;
+    height: auto !important;
+    background-color: transparent !important;
+    background: transparent !important;
+    display: block !important;
   }
 }

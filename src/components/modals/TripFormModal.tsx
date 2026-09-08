@@ -269,6 +269,10 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
     e.preventDefault();
     if (!validate()) return;
 
+    const primaryHospId = formData.destinationIds?.[0];
+    const primaryHosp = primaryHospId ? allAvailableHospitals.find(h => h.id === primaryHospId) : null;
+    const destHospitalName = primaryHosp ? primaryHosp.name : formData.destinationHospital;
+
     const tripToSave: Trip = {
       id: trip?.id || `trip-${Date.now()}`,
       code: formData.code || generateTripCode(formData.departureDate!, 1),
@@ -278,6 +282,7 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
       estimatedReturnTime: formData.estimatedReturnTime || '18:00',
       originCity: formData.originCity || 'Município de Origem',
       destinationCity: formData.destinationCity!.trim(),
+      destinationHospital: destHospitalName,
       departureLocation: formData.departureLocation!.trim(),
       vehicleId: formData.vehicleId!,
       driverId: formData.driverId,
