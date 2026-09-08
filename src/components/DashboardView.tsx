@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   Bus, 
   Users, 
@@ -15,7 +15,10 @@ import {
   ShieldCheck, 
   FileCheck,
   FileSpreadsheet,
-  Trash2
+  Trash2,
+  Edit,
+  X,
+  Search
 } from 'lucide-react';
 import { DestinationHospital, MunicipalConfig, Patient, Trip, Vehicle, ensurePassengerArray } from '../types';
 import { formatDateBR, formatPlate, getTripStatusLabel, getVehicleTypeLabel } from '../utils/formatters';
@@ -34,6 +37,8 @@ interface DashboardViewProps {
   onPrintManifest: (trip: Trip) => void;
   onOpenClosureModal: (trip: Trip) => void;
   onClearSystem: () => void;
+  onEditTrip: (trip: Trip) => void;
+  onCancelBooking: (tripId: string, passengerId: string) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -50,9 +55,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onPrintManifest,
   onOpenClosureModal,
   onClearSystem,
+  onEditTrip,
+  onCancelBooking,
 }) => {
-  const scheduledTrips = useMemo(() => trips.filter((t) => t.status === 'scheduled' || t.status === 'in_route'), [trips]);
-  const completedTrips = useMemo(() => trips.filter((t) => t.status === 'completed'), [trips]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const scheduledTrips = useMemo(() => {
+    return trips
+      .filter((t) => t.status === 'scheduled' || t.status === 'in_route')
+      .sort((a, b) => {
+        const dateCompare = a.departureDate.localeCompare(b.departureDate);
+        if (dateCompare !== 0) return dateCompare;
+        return a.departureTime.localeCompare(b.departureTime);
+      });
+  }, [trips]);
+
+  const filteredScheduledTrips = useMemo(() => {
+    if (!searchTerm.trim()) return scheduledTrips;
+    const term = searchTerm.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return scheduledTrips.filter((t) => {
+      const city = (t.destinationCity || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const hospital = (t.destinationHospital || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return city.includes(term) || hospital.includes(term);
+    });
+  }, [scheduledTrips, searchTerm]);
+
+  const completedTrips = useMemo(() => {
+    return trips
+      .filter((t) => t.status === 'completed')
+      .sort((a, b) => {
+        const dateCompare = b.departureDate.localeCompare(a.departureDate);
+        if (dateCompare !== 0) return dateCompare;
+        return b.departureTime.localeCompare(a.departureTime);
+      });
+  }, [trips]);
   
   // Total passengers across scheduled trips
   const totalScheduledPassengers = useMemo(() => scheduledTrips.reduce((acc, t) => {
@@ -232,6 +268,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </button>
           </div>
 
+          {/* Campo de Busca por Cidade/Destino */}
+          {scheduledTrips.length > 0 && (
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-slate-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar viagem por cidade ou hospital de destino..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-white placeholder-slate-400"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="space-y-3">
             {scheduledTrips.length === 0 ? (
               <div className="p-8 bg-white rounded-xl border border-slate-200 text-center">
@@ -245,8 +305,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   + Agendar Nova Viagem
                 </button>
               </div>
+            ) : filteredScheduledTrips.length === 0 ? (
+              <div className="p-8 bg-white rounded-xl border border-slate-200 text-center">
+                <Search className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                <p className="font-bold text-slate-700 text-sm">Nenhuma viagem encontrada</p>
+                <p className="text-xs text-slate-400 mt-1">Não há viagens agendadas para "{searchTerm}"</p>
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="mt-3 px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Limpar Busca
+                </button>
+              </div>
             ) : (
-              scheduledTrips.map((trip) => {
+              filteredScheduledTrips.map((trip) => {
                 const isToday = trip.departureDate === new Date().toISOString().slice(0, 10);
                 const vehicle = vehicles.find((v) => v.id === trip.vehicleId);
                 const maxCap = vehicle?.maxCapacity || 16;
@@ -329,34 +401,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {/* Lista resumida de passageiros */}
                       {passList.length > 0 && (
                         <div className="mt-2.5 pt-2 border-t border-slate-200 flex flex-wrap gap-1.5 items-center text-[11px]">
-                          <span className="text-slate-400 font-medium">Passageiros:</span>
-                          {passList.slice(0, 4).map((p) => (
-                            <span key={p.id} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-slate-700 font-medium">
-                              {(p.patientName || '').split(' ')[0]} {(p.patientName || '').split(' ')[1] || ''}
-                              {p.companionIncluded ? ' (+1 acomp)' : ''}
+                          <span className="text-slate-400 font-semibold mr-1">Passageiros:</span>
+                          {passList.map((p) => (
+                            <span key={p.id} className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-slate-700 font-medium shrink-0">
+                              <span>{(p.patientName || '').split(' ')[0]} {(p.patientName || '').split(' ')[1] || ''}</span>
+                              {p.companionIncluded && <span className="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-1 py-0.2 rounded">(+1 Acomp)</span>}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm(`Remover o agendamento de ${p.patientName} desta viagem?`)) {
+                                    onCancelBooking(trip.id, p.id);
+                                  }
+                                }}
+                                className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded p-0.5 transition-colors cursor-pointer"
+                                title="Cancelar agendamento de paciente"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
                             </span>
                           ))}
-                          {passList.length > 4 && (
-                            <span className="text-slate-500 font-bold">+{passList.length - 4} outros</span>
-                          )}
                         </div>
                       )}
                     </div>
 
                     {/* Botões de Ação da Viagem */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                      <div className="text-[11px] text-slate-500">
-                        Motorista: <strong>{trip.driverName}</strong> ({trip.driverPhone})
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100/60">
+                      <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                        <span>Motorista: <strong>{trip.driverName || 'Não Definido'}</strong> ({trip.driverPhone || 'N/A'})</span>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <button
+                          onClick={() => onEditTrip(trip)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                          title="Editar detalhes da viagem (veículo, motorista, data, etc)"
+                        >
+                          <Edit className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Editar Viagem</span>
+                        </button>
+
+                        <button
                           onClick={() => onPrintManifest(trip)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                           title="Imprimir lista de passageiros para o motorista"
                         >
                           <Printer className="w-3.5 h-3.5 text-slate-600" />
-                          <span>Manifesto de Bordo</span>
+                          <span>Manifesto</span>
                         </button>
 
                         <button

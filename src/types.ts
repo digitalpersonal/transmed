@@ -187,6 +187,7 @@ export interface Trip {
   estimatedReturnTime: string;
   originCity: string;
   destinationCity: string;
+  destinationHospital?: string; // Clinica/Hospital de referencia da viagem
   departureLocation: string; // Ex: Praça da Matriz / Garagem da Saúde
   
   vehicleId: string;

@@ -115,6 +115,9 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       return;
     }
 
+    const emailLower = newEmail.trim().toLowerCase();
+    const alreadyInDb = systemUsers.some(u => u.email?.toLowerCase() === emailLower);
+
     try {
       // Create a secondary Supabase client so the logged-in admin is not signed out
       const secondarySupabase = createClient(config.supabaseUrl, config.supabaseKey, {
@@ -130,9 +133,25 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         email: newEmail.trim(),
         password: newPassword,
       });
-      if (error) throw error;
 
-      // Save in users table
+      if (error) {
+        const errorMsg = error.message || String(error);
+        const isAlreadyRegistered = errorMsg.toLowerCase().includes('already registered') || 
+                                    errorMsg.toLowerCase().includes('already exists') ||
+                                    errorMsg.toLowerCase().includes('already_registered');
+
+        if (isAlreadyRegistered) {
+          if (alreadyInDb) {
+            showToast('Este usuário já está totalmente cadastrado no sistema!', 'info');
+            return;
+          }
+          console.warn('User already in Supabase Auth, but missing in DB. Syncing profile...');
+        } else {
+          throw error;
+        }
+      }
+
+      // Save or sync in users database table
       const newUser: SystemUser = {
         id: `usr-${Date.now()}`,
         email: newEmail.trim(),

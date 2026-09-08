@@ -47,7 +47,19 @@ export function subscribeToPatients(callback: (patients: Patient[]) => void) {
       console.warn('Supabase patients error, using local storage:', error);
       callback(getStoredPatients());
     } else {
-      callback(data || []);
+      const list = data || [];
+      if (list.length === 0) {
+        const stored = getStoredPatients();
+        if (stored.length > 0) {
+          // Sync local patients to Supabase in background
+          const itemsToUpsert = stored.map(p => ({ collectionName: 'patients', id: p.id, data: p }));
+          performBatchWrite(itemsToUpsert, []).catch(() => {});
+          callback(stored);
+          return;
+        }
+      }
+      savePatients(list);
+      callback(list);
     }
   };
 
@@ -81,8 +93,18 @@ export function subscribeToVehicles(callback: (vehicles: Vehicle[]) => void) {
     if (error) {
       callback(getStoredVehicles());
     } else {
-      saveVehicles(data || []);
-      callback(data || []);
+      const list = data || [];
+      if (list.length === 0) {
+        const stored = getStoredVehicles();
+        if (stored.length > 0) {
+          const itemsToUpsert = stored.map(v => ({ collectionName: 'vehicles', id: v.id, data: v }));
+          performBatchWrite(itemsToUpsert, []).catch(() => {});
+          callback(stored);
+          return;
+        }
+      }
+      saveVehicles(list);
+      callback(list);
     }
   };
 
@@ -116,8 +138,18 @@ export function subscribeToDrivers(callback: (drivers: Driver[]) => void) {
     if (error) {
       callback(getStoredDrivers());
     } else {
-      saveDrivers(data || []);
-      callback(data || []);
+      const list = data || [];
+      if (list.length === 0) {
+        const stored = getStoredDrivers();
+        if (stored.length > 0) {
+          const itemsToUpsert = stored.map(d => ({ collectionName: 'drivers', id: d.id, data: d }));
+          performBatchWrite(itemsToUpsert, []).catch(() => {});
+          callback(stored);
+          return;
+        }
+      }
+      saveDrivers(list);
+      callback(list);
     }
   };
 
@@ -151,7 +183,18 @@ export function subscribeToDestinations(callback: (destinations: DestinationHosp
     if (error) {
       callback(getStoredDestinations());
     } else {
-      callback(data || []);
+      const list = data || [];
+      if (list.length === 0) {
+        const stored = getStoredDestinations();
+        if (stored.length > 0) {
+          const itemsToUpsert = stored.map(d => ({ collectionName: 'destinations', id: d.id, data: d }));
+          performBatchWrite(itemsToUpsert, []).catch(() => {});
+          callback(stored);
+          return;
+        }
+      }
+      saveDestinations(list);
+      callback(list);
     }
   };
 
@@ -187,6 +230,16 @@ export function subscribeToTrips(callback: (trips: Trip[]) => void) {
           passengers: ensurePassengerArray(item.passengers),
         }))
         .filter(t => !deletedIds.includes(t.id));
+
+      if (list.length === 0) {
+        const stored = getStoredTrips().filter(t => !deletedIds.includes(t.id));
+        if (stored.length > 0) {
+          const itemsToUpsert = stored.map(t => ({ collectionName: 'trips', id: t.id, data: t }));
+          performBatchWrite(itemsToUpsert, []).catch(() => {});
+          callback(stored);
+          return;
+        }
+      }
       saveTrips(list);
       callback(list);
     }

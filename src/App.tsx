@@ -472,9 +472,8 @@ export default function App() {
       }
     };
 
-    // Process all spreadsheet rows
-    let updatedTrips: Trip[] = [];
-    clearTrips(); // Reset in local storage and cache
+    // Process all spreadsheet rows (merge with existing trips, preserving manually registered data)
+    let updatedTrips: Trip[] = [...trips];
 
     capturedRows.forEach((row, idx) => {
       const parsedPat = newPatients[idx];
@@ -527,9 +526,9 @@ export default function App() {
 
       const tripDate = row.dataViagem || todayStr;
       
-      // Only generate and add passengers to trips that are today or in the future
+      // Manter a importação das viagens somente da data da importação para frente
       if (tripDate < todayStr) return;
-
+      
       // Check if trip already exists for this destination + date + vehicle
       let targetTrip = updatedTrips.find(t => 
         t.destinationCity.toLowerCase().includes(destCity.toLowerCase()) &&
@@ -571,6 +570,7 @@ export default function App() {
           id: newTripId,
           code: newTripCode,
           destinationCity: destCity,
+          destinationHospital: destHospital,
           departureDate: tripDate,
           departureTime: row.horarioSaida || '05:30',
           estimatedReturnDate: tripDate,
@@ -594,6 +594,8 @@ export default function App() {
           targetTrip = {
             ...targetTrip,
             passengers: updatedTripPassengers,
+            destinationHospital: targetTrip.destinationHospital || destHospital,
+            status: 'scheduled', // Keep it active if newly imported passenger is added
           };
           updatedTrips = updatedTrips.map(t => t.id === targetTrip!.id ? targetTrip! : t);
         }
@@ -619,41 +621,37 @@ export default function App() {
     setTrips(updatedTrips);
     saveTrips(updatedTrips);
 
-    // Sync everything to Supabase
+    // Sync everything to Supabase using high-speed bulk writes to avoid browser request limits
     try {
-      // 1. Upsert Patients
-      const patientPromises = patientsToUpsert.map(p => upsertPatientFirestore(p));
-      
-      // 2. Upsert Vehicles
-      const vehiclePromises = vehiclesToUpsert.map(v => upsertVehicleFirestore(v));
+      const itemsToUpsert: { collectionName: string; id: string; data: any }[] = [];
 
-      // 3. Upsert Drivers
-      const driverPromises = driversToUpsert.map(d => upsertDriverFirestore(d));
+      // Ensure absolutely everything processed is registered on Supabase
+      localPatients.forEach(p => {
+        itemsToUpsert.push({ collectionName: 'patients', id: p.id, data: p });
+      });
 
-      // 4. Upsert Destinations (Hospitals)
-      const destinationPromises = destinationsToUpsert.map(d => upsertDestinationFirestore(d));
+      localVehicles.forEach(v => {
+        itemsToUpsert.push({ collectionName: 'vehicles', id: v.id, data: v });
+      });
 
-      // 5. Upsert Cities
-      let citiesPromise = Promise.resolve();
-      if (citiesToUpsert.length > 0) {
-        citiesPromise = updateDestinationCitiesFirestore(localCities);
-      }
+      localDrivers.forEach(d => {
+        itemsToUpsert.push({ collectionName: 'drivers', id: d.id, data: d });
+      });
 
-      // 6. Delete old trips and upload new trips
-      const deleteTripOps = trips.map(t => ({ collectionName: 'trips', id: t.id }));
-      const upsertTripOps = updatedTrips.map(t => ({ collectionName: 'trips', id: t.id, data: t }));
+      localDestinations.forEach(d => {
+        itemsToUpsert.push({ collectionName: 'destinations', id: d.id, data: d });
+      });
+
+      updatedTrips.forEach(t => {
+        itemsToUpsert.push({ collectionName: 'trips', id: t.id, data: t });
+      });
 
       await Promise.all([
-        ...patientPromises,
-        ...vehiclePromises,
-        ...driverPromises,
-        ...destinationPromises,
-        citiesPromise
+        performBatchWrite(itemsToUpsert, []),
+        localCities.length > 0 ? updateDestinationCitiesFirestore(localCities) : Promise.resolve()
       ]);
 
-      await performBatchWrite(upsertTripOps, deleteTripOps);
-
-      showToast(`Planilha importada! ${patientsToUpsert.length} pacientes, ${updatedTrips.length} viagens, ${vehiclesToUpsert.length} veículos e ${driversToUpsert.length} motoristas cadastrados com sucesso!`, 'success');
+      showToast(`Planilha importada! ${localPatients.length} pacientes, ${updatedTrips.length} viagens, ${localVehicles.length} veículos e ${localDrivers.length} motoristas sincronizados com sucesso no Supabase!`, 'success');
     } catch (err) {
       console.error('Error synchronizing spreadsheet data to Supabase:', err);
       showToast('Importação concluída localmente. Algumas sincronizações com a nuvem podem levar alguns segundos.', 'info');
@@ -1163,6 +1161,11 @@ export default function App() {
                 showToast('Erro ao remover dados do banco de dados.', 'error');
               }
             }}
+            onEditTrip={(trip) => {
+              setEditingTrip(trip);
+              setIsTripModalOpen(true);
+            }}
+            onCancelBooking={handleCancelBooking}
           />
         )}
 
