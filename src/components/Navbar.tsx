@@ -110,15 +110,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Quick Action Buttons */}
         <div className="flex items-center flex-wrap gap-2">
-          <button
-            id="btn-nav-import-excel"
-            onClick={onOpenImportExcelModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded-lg text-xs font-semibold border border-emerald-500/30 transition-colors cursor-pointer"
-            title="Importar pacientes por arquivo Excel"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Importar Planilha</span>
-          </button>
+          {isAdmin && (
+            <button
+              id="btn-nav-import-excel"
+              onClick={onOpenImportExcelModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded-lg text-xs font-semibold border border-emerald-500/30 transition-colors cursor-pointer"
+              title="Importar pacientes por arquivo Excel"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Importar Planilha</span>
+            </button>
+          )}
 
           <button
             id="btn-nav-new-trip"

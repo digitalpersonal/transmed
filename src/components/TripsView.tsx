@@ -16,7 +16,10 @@ import {
   AlertTriangle,
   Users,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  CheckCircle2,
+  XCircle,
+  Navigation
 } from 'lucide-react';
 import { DestinationHospital, Trip, Vehicle, ensurePassengerArray } from '../types';
 import { exportTripManifestToExcel } from '../utils/excel';
@@ -55,6 +58,16 @@ export const TripsView: React.FC<TripsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('open');
   const [expandedTripId, setExpandedTripId] = useState<string | null>(null);
   const [tripToDelete, setTripToDelete] = useState<Trip | null>(null);
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'scheduled': return <Clock className="w-3 h-3" />;
+      case 'in_route': return <Navigation className="w-3 h-3" />;
+      case 'completed': return <CheckCircle2 className="w-3 h-3" />;
+      case 'cancelled': return <XCircle className="w-3 h-3" />;
+      default: return <AlertTriangle className="w-3 h-3" />;
+    }
+  };
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 20;
 
@@ -199,7 +212,8 @@ export const TripsView: React.FC<TripsViewProps> = ({
                               {resolvedHosp}
                             </span>
                           )}
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusBadge.bg}`}>
+                          <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusBadge.bg}`}>
+                            {getStatusIcon(trip.status)}
                             {statusBadge.label}
                           </span>
                           <span className="text-xs font-mono font-bold text-slate-400">

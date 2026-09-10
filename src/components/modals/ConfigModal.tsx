@@ -10,6 +10,7 @@ interface ConfigModalProps {
   onExportBackup: () => void;
   onImportBackup: (jsonString: string) => void;
   onClose: () => void;
+  isAdmin?: boolean;
 }
 
 export const ConfigModal: React.FC<ConfigModalProps> = ({
@@ -20,6 +21,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   onExportBackup,
   onImportBackup,
   onClose,
+  isAdmin,
 }) => {
   const [formData, setFormData] = useState<MunicipalConfig>({ ...config });
   const [newInstruction, setNewInstruction] = useState<string>('');
@@ -225,38 +227,42 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
                 <input type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
               </label>
 
-              {confirmClear ? (
-                <div className="flex items-center gap-2 bg-red-50 p-1.5 rounded border border-red-200">
-                  <span className="text-xs text-red-700 font-bold px-1">Tem certeza? Apagar TUDO?</span>
-                  <button type="button" onClick={() => setConfirmClear(false)} className="px-2 py-1 text-xs text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 cursor-pointer">Cancelar</button>
-                  <button type="button" onClick={() => { onClearAllData(); onClose(); }} className="px-2 py-1 text-xs text-white bg-red-600 rounded hover:bg-red-700 font-bold cursor-pointer">Sim</button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmClear(true)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-red-700 hover:bg-red-50 rounded text-xs font-bold cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Limpar Tudo (Zerar)
-                </button>
-              )}
-              
-              {confirmReset ? (
-                <div className="flex items-center gap-2 bg-rose-50 p-1.5 rounded border border-rose-200">
-                  <span className="text-xs text-rose-700 font-bold px-1">Restaurar dados padrão?</span>
-                  <button type="button" onClick={() => setConfirmReset(false)} className="px-2 py-1 text-xs text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 cursor-pointer">Cancelar</button>
-                  <button type="button" onClick={() => { onResetData(); onClose(); }} className="px-2 py-1 text-xs text-white bg-rose-600 rounded hover:bg-rose-700 font-bold cursor-pointer">Sim</button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmReset(true)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-rose-700 hover:bg-rose-50 rounded text-xs font-bold cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  Restaurar Padrão
-                </button>
+              {isAdmin && (
+                <>
+                  {confirmClear ? (
+                    <div className="flex items-center gap-2 bg-red-50 p-1.5 rounded border border-red-200">
+                      <span className="text-xs text-red-700 font-bold px-1">Tem certeza? Apagar TUDO?</span>
+                      <button type="button" onClick={() => setConfirmClear(false)} className="px-2 py-1 text-xs text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 cursor-pointer">Cancelar</button>
+                      <button type="button" onClick={() => { onClearAllData(); onClose(); }} className="px-2 py-1 text-xs text-white bg-red-600 rounded hover:bg-red-700 font-bold cursor-pointer">Sim</button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmClear(true)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-red-700 hover:bg-red-50 rounded text-xs font-bold cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Limpar Tudo (Zerar)
+                    </button>
+                  )}
+                  
+                  {confirmReset ? (
+                    <div className="flex items-center gap-2 bg-rose-50 p-1.5 rounded border border-rose-200">
+                      <span className="text-xs text-rose-700 font-bold px-1">Restaurar dados padrão?</span>
+                      <button type="button" onClick={() => setConfirmReset(false)} className="px-2 py-1 text-xs text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 cursor-pointer">Cancelar</button>
+                      <button type="button" onClick={() => { onResetData(); onClose(); }} className="px-2 py-1 text-xs text-white bg-rose-600 rounded hover:bg-rose-700 font-bold cursor-pointer">Sim</button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmReset(true)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-rose-700 hover:bg-rose-50 rounded text-xs font-bold cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Restaurar Padrão
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

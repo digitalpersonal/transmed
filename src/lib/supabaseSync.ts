@@ -42,7 +42,7 @@ export async function clearTripsAndPatientsFirestore() {
 
 export function subscribeToPatients(callback: (patients: Patient[]) => void) {
   const fetchPatients = async () => {
-    const { data, error } = await supabase.from('patients').select('*');
+    const { data, error } = await supabase.from('patients').select('*').limit(10000);
     if (error) {
       console.warn('Supabase patients error, using local storage:', error);
       callback(getStoredPatients());
@@ -89,7 +89,7 @@ export async function deletePatientFirestore(patientId: string) {
 
 export function subscribeToVehicles(callback: (vehicles: Vehicle[]) => void) {
   const fetchVehicles = async () => {
-    const { data, error } = await supabase.from('vehicles').select('*');
+    const { data, error } = await supabase.from('vehicles').select('*').limit(10000);
     if (error) {
       callback(getStoredVehicles());
     } else {
@@ -134,7 +134,7 @@ export async function deleteVehicleFirestore(vehicleId: string) {
 
 export function subscribeToDrivers(callback: (drivers: Driver[]) => void) {
   const fetchDrivers = async () => {
-    const { data, error } = await supabase.from('drivers').select('*');
+    const { data, error } = await supabase.from('drivers').select('*').limit(10000);
     if (error) {
       callback(getStoredDrivers());
     } else {
@@ -179,7 +179,7 @@ export async function deleteDriverFirestore(driverId: string) {
 
 export function subscribeToDestinations(callback: (destinations: DestinationHospital[]) => void) {
   const fetchDestinations = async () => {
-    const { data, error } = await supabase.from('destinations').select('*');
+    const { data, error } = await supabase.from('destinations').select('*').limit(10000);
     if (error) {
       callback(getStoredDestinations());
     } else {
@@ -219,7 +219,7 @@ export async function upsertDestinationFirestore(dest: DestinationHospital) {
 
 export function subscribeToTrips(callback: (trips: Trip[]) => void) {
   const fetchTrips = async () => {
-    const { data, error } = await supabase.from('trips').select('*');
+    const { data, error } = await supabase.from('trips').select('*').limit(10000);
     const deletedIds = getDeletedTripIds();
     if (error) {
       callback(getStoredTrips().filter(t => !deletedIds.includes(t.id)));
@@ -330,7 +330,7 @@ export async function updateDestinationCitiesFirestore(cities: DestinationCity[]
 
 export function subscribeToUsers(callback: (users: SystemUser[]) => void) {
   const fetchUsers = async () => {
-    const { data, error } = await supabase.from('users').select('*');
+    const { data, error } = await supabase.from('users').select('*').limit(10000);
     if (error) {
       callback([{
         id: 'admin-digitalpersonal',

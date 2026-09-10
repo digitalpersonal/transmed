@@ -1168,6 +1168,7 @@ export default function App() {
               setIsTripModalOpen(true);
             }}
             onCancelBooking={handleCancelBooking}
+            isAdmin={isAdmin}
           />
         )}
 
@@ -1233,6 +1234,7 @@ export default function App() {
               setIsBookingModalOpen(true);
             }}
             onOpenImportExcelModal={() => setIsExcelImportModalOpen(true)}
+            isAdmin={isAdmin}
           />
         )}
 
@@ -1446,6 +1448,7 @@ export default function App() {
           onExportBackup={exportDatabaseBackup}
           onImportBackup={handleImportBackup}
           onClose={() => setIsConfigModalOpen(false)}
+          isAdmin={isAdmin}
         />
       )}
 

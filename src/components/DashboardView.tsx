@@ -39,6 +39,7 @@ interface DashboardViewProps {
   onClearSystem: () => void;
   onEditTrip: (trip: Trip) => void;
   onCancelBooking: (tripId: string, passengerId: string) => void;
+  isAdmin?: boolean;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -57,6 +58,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onClearSystem,
   onEditTrip,
   onCancelBooking,
+  isAdmin,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -112,6 +114,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const availableVehiclesCount = useMemo(() => vehicles.filter((v) => v.status === 'available').length, [vehicles]);
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const openTripsTodayCount = useMemo(() => {
+    return scheduledTrips.filter((t) => t.departureDate === todayStr).length;
+  }, [scheduledTrips, todayStr]);
+
   return (
     <div className="space-y-6">
       {/* Top Banner / Call to Action */}
@@ -146,28 +153,52 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               Agendar Nova Viagem
             </button>
 
-            <button
-              id="btn-quick-import-excel"
-              onClick={onOpenImportExcelModal}
-              className="flex items-center gap-2 px-3.5 py-2 bg-slate-800/80 hover:bg-slate-700 text-emerald-300 rounded-lg text-xs font-bold border border-emerald-500/40 transition-colors cursor-pointer"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              Importar Planilha Excel
-            </button>
-            <button
-              onClick={onClearSystem}
-              className="flex items-center gap-2 px-3.5 py-2 bg-rose-900/80 hover:bg-rose-800 text-rose-200 rounded-lg text-xs font-bold border border-rose-500/40 transition-colors cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4" />
-              Limpar Tudo
-            </button>
+            {isAdmin && (
+              <>
+                <button
+                  id="btn-quick-import-excel"
+                  onClick={onOpenImportExcelModal}
+                  className="flex items-center gap-2 px-3.5 py-2 bg-slate-800/80 hover:bg-slate-700 text-emerald-300 rounded-lg text-xs font-bold border border-emerald-500/40 transition-colors cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Importar Planilha Excel
+                </button>
+                <button
+                  onClick={onClearSystem}
+                  className="flex items-center gap-2 px-3.5 py-2 bg-rose-900/80 hover:bg-rose-800 text-rose-200 rounded-lg text-xs font-bold border border-rose-500/40 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Limpar Tudo
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1 */}
+        {/* Card 1: Viagens para Hoje */}
+        <div 
+          onClick={() => onNavigateTab('trips')}
+          className="p-4 bg-white rounded-xl border border-slate-200 hover:border-violet-300 shadow-xs transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500 text-xs font-semibold uppercase">Viagens para Hoje</span>
+            <div className="w-9 h-9 bg-violet-50 text-violet-700 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Calendar className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-black text-slate-900">{openTripsTodayCount}</span>
+            <span className="text-xs text-slate-600 font-medium">viagens ativas</span>
+          </div>
+          <p className="text-[11px] text-violet-700 font-medium mt-1">
+            Partindo hoje
+          </p>
+        </div>
+
+        {/* Card 2: Viagens em Aberto */}
         <div 
           onClick={() => onNavigateTab('trips')}
           className="p-4 bg-white rounded-xl border border-slate-200 hover:border-sky-300 shadow-xs transition-all cursor-pointer group"
@@ -187,7 +218,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </p>
         </div>
 
-        {/* Card 2 */}
+        {/* Card 3: Pacientes Agendados */}
         <div 
           onClick={() => onNavigateTab('bookings')}
           className="p-4 bg-white rounded-xl border border-slate-200 hover:border-emerald-300 shadow-xs transition-all cursor-pointer group"
@@ -207,7 +238,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </p>
         </div>
 
-        {/* Card 3 */}
+        {/* Card 4: Ocupação da Frota */}
         <div 
           onClick={() => onNavigateTab('trips')}
           className="p-4 bg-white rounded-xl border border-slate-200 hover:border-amber-300 shadow-xs transition-all cursor-pointer group"
@@ -232,26 +263,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               style={{ width: `${Math.min(100, averageOccupancy)}%` }}
             ></div>
           </div>
-        </div>
-
-        {/* Card 4 */}
-        <div 
-          onClick={() => onNavigateTab('vehicles')}
-          className="p-4 bg-white rounded-xl border border-slate-200 hover:border-slate-400 shadow-xs transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 text-xs font-semibold uppercase">Frota Municipal</span>
-            <div className="w-9 h-9 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Bus className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{vehicles.length}</span>
-            <span className="text-xs text-slate-600 font-medium">veículos totais</span>
-          </div>
-          <p className="text-[11px] text-emerald-700 font-medium mt-1">
-            {availableVehiclesCount} disponíveis na garagem
-          </p>
         </div>
       </div>
 

@@ -28,6 +28,7 @@ interface PatientsViewProps {
   onDeletePatient: (patientId: string) => void;
   onOpenNewBookingModalWithPatient: (patientId: string) => void;
   onOpenImportExcelModal: () => void;
+  isAdmin?: boolean;
 }
 
 export const PatientsView: React.FC<PatientsViewProps> = ({
@@ -37,6 +38,7 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
   onDeletePatient,
   onOpenNewBookingModalWithPatient,
   onOpenImportExcelModal,
+  isAdmin,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [conditionFilter, setConditionFilter] = useState<string>('all');
@@ -92,22 +94,26 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => exportPatientsToExcel(patients)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-emerald-800 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-            title="Exportar todos os pacientes para planilha Excel"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Exportar Excel</span>
-          </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => exportPatientsToExcel(patients)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-emerald-800 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                title="Exportar todos os pacientes para planilha Excel"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exportar Excel</span>
+              </button>
 
-          <button
-            onClick={onOpenImportExcelModal}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold border border-emerald-300 transition-colors cursor-pointer"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Importar Planilha</span>
-          </button>
+              <button
+                onClick={onOpenImportExcelModal}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold border border-emerald-300 transition-colors cursor-pointer"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Importar Planilha</span>
+              </button>
+            </>
+          )}
 
           <button
             id="btn-patients-new"
