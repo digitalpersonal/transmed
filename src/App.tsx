@@ -1480,6 +1480,7 @@ export default function App() {
           trip={manifestToPrint}
           vehicle={vehicles.find((v) => v.id === manifestToPrint.vehicleId)}
           config={config}
+          patients={patients}
           onClose={() => setManifestToPrint(null)}
         />
       )}

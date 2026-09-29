@@ -1,12 +1,13 @@
 import React from 'react';
 import { Printer, X, Bus, MapPin, Calendar, Clock, Phone, Users, ShieldAlert } from 'lucide-react';
-import { MunicipalConfig, Trip, Vehicle, ensurePassengerArray } from '../../types';
+import { MunicipalConfig, Patient, Trip, Vehicle, ensurePassengerArray } from '../../types';
 import { formatDateBR, formatPlate, getVehicleTypeLabel } from '../../utils/formatters';
 
 interface PrintManifestModalProps {
   trip: Trip;
   vehicle?: Vehicle;
   config: MunicipalConfig;
+  patients?: Patient[];
   onClose: () => void;
 }
 
@@ -14,6 +15,7 @@ export const PrintManifestModal: React.FC<PrintManifestModalProps> = ({
   trip,
   vehicle,
   config,
+  patients,
   onClose,
 }) => {
   const handlePrint = () => {
@@ -139,7 +141,7 @@ export const PrintManifestModal: React.FC<PrintManifestModalProps> = ({
                     <th className="py-3 px-2 w-24">Contato</th>
                     <th className="py-3 px-2">Destino / Hospital</th>
                     <th className="py-3 px-2 w-16 text-center">Horário</th>
-                    <th className="py-3 px-2 w-32 text-center">Assinatura no Embarque</th>
+                    <th className="py-3 px-2.5 w-44 text-left">Onde Aguardar o Transporte</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -152,6 +154,19 @@ export const PrintManifestModal: React.FC<PrintManifestModalProps> = ({
                   ) : (
                     passList.map((p, idx) => {
                       const uniqueKey = p.bookingCode ? `${p.bookingCode}-${idx}` : `passenger-${p.id || idx}-${idx}`;
+                      const pat = patients?.find((pt) => pt.id === p.patientId || (p.patientCpf && pt.cpf === p.patientCpf));
+                      const boardingLocation = (
+                        p.patientAddress?.trim() ||
+                        pat?.boardingAddress?.trim() ||
+                        pat?.address?.trim() ||
+                        trip.departureLocation
+                      );
+                      const companionBoardingLocation = (
+                        p.companionAddress?.trim() ||
+                        pat?.companionAddress?.trim() ||
+                        boardingLocation
+                      );
+
                       return (
                         <React.Fragment key={uniqueKey}>
                         {/* Linha do Paciente */}
@@ -174,9 +189,20 @@ export const PrintManifestModal: React.FC<PrintManifestModalProps> = ({
                             <div className="text-slate-600 text-xs">{p.destinationCity}</div>
                           </td>
                           <td className="py-3 px-2 text-center font-bold text-slate-800">{p.appointmentTime}</td>
-                          <td className="py-3 px-2 border-l border-slate-200 text-center">
-                            <div className="h-8 border-b border-slate-300 w-full mb-1"></div>
-                            <span className="text-[10px] text-slate-500 font-medium block">[ ] Embarcou [ ] Falta</span>
+                          <td className="py-3 px-2.5 border-l border-slate-200 text-left">
+                            <div className="flex items-start gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-sky-700 shrink-0 mt-0.5 print:text-slate-800" />
+                              <div>
+                                <span className="font-bold text-slate-900 text-xs block leading-snug">
+                                  {boardingLocation}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
+                                  {boardingLocation.toLowerCase() === trip.departureLocation.toLowerCase()
+                                    ? 'Ponto central de saída'
+                                    : 'Aguardar transporte neste local'}
+                                </span>
+                              </div>
+                            </div>
                           </td>
                         </tr>
 
@@ -201,9 +227,18 @@ export const PrintManifestModal: React.FC<PrintManifestModalProps> = ({
                               (Acompanha paciente)
                             </td>
                             <td className="py-2 px-2 text-center text-slate-500">-</td>
-                            <td className="py-2 px-2 border-l border-slate-200 text-center">
-                              <div className="h-6 border-b border-slate-300 w-full mb-1"></div>
-                              <span className="text-[10px] text-slate-500 font-medium block">Assinatura Acomp.</span>
+                            <td className="py-2 px-2.5 border-l border-slate-200 text-left">
+                              <div className="flex items-start gap-1.5">
+                                <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="text-xs text-slate-700 font-medium block leading-snug">
+                                    {companionBoardingLocation}
+                                  </span>
+                                  <span className="text-[9px] text-slate-400 block mt-0.5">
+                                    Embarque junto com o paciente
+                                  </span>
+                                </div>
+                              </div>
                             </td>
                           </tr>
                         )}
