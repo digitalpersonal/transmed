@@ -31,23 +31,33 @@ export async function seedAllFirestore() {
 
 export async function clearTripsAndPatientsFirestore(tripsOnly = false) {
   try {
-    // Reset local deleted tracking first to avoid conflicts
+    // 1. Clear Local Storage first
     if (tripsOnly) {
       saveTrips([]);
       safeSetItem('tfd_deleted_trips_v1', JSON.stringify([]));
-      const { error } = await supabase.from('trips').delete().filter('id', 'not.is', null);
-      if (error) await supabase.from('trips').delete().neq('id', 'dummy-unmatched-id');
     } else {
       saveTrips([]);
       savePatients([]);
       safeSetItem('tfd_deleted_trips_v1', JSON.stringify([]));
-      const { error: errorTrips } = await supabase.from('trips').delete().filter('id', 'not.is', null);
-      const { error: errorPatients } = await supabase.from('patients').delete().filter('id', 'not.is', null);
-      if (errorTrips) await supabase.from('trips').delete().neq('id', 'dummy-unmatched-id');
-      if (errorPatients) await supabase.from('patients').delete().neq('id', 'dummy-unmatched-id');
+    }
+
+    // 2. Clear Supabase with a more robust approach
+    if (tripsOnly) {
+      const { error } = await supabase.from('trips').delete().neq('id', 'dummy-never-matches-this-id');
+      if (error) console.error('Error clearing trips from Supabase:', error);
+    } else {
+      const { error: errTrips } = await supabase.from('trips').delete().neq('id', 'dummy-never-matches-this-id');
+      const { error: errPats } = await supabase.from('patients').delete().neq('id', 'dummy-never-matches-this-id');
+      if (errTrips) console.error('Error clearing trips from Supabase:', errTrips);
+      if (errPats) console.error('Error clearing patients from Supabase:', errPats);
     }
 
     console.log('Database cleared successfully');
+    
+    // 3. Force a complete application reload to reset all subscriptions and state
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
   } catch (error: any) {
     console.error('Error clearing data in Supabase:', error);
     throw error;
@@ -74,14 +84,8 @@ export function subscribeToPatients(callback: (patients: Patient[]) => void) {
     } else {
       const list = data || [];
       if (list.length === 0) {
-        const stored = getStoredPatients();
-        if (stored.length > 0) {
-          // Sync local patients to Supabase in background
-          const itemsToUpsert = stored.map(p => ({ collectionName: 'patients', id: p.id, data: p }));
-          performBatchWrite(itemsToUpsert, []).catch(() => {});
-          callback(stored);
-          return;
-        }
+        callback([]);
+        return;
       }
       savePatients(list);
       callback(list);
@@ -120,13 +124,8 @@ export function subscribeToVehicles(callback: (vehicles: Vehicle[]) => void) {
     } else {
       const list = data || [];
       if (list.length === 0) {
-        const stored = getStoredVehicles();
-        if (stored.length > 0) {
-          const itemsToUpsert = stored.map(v => ({ collectionName: 'vehicles', id: v.id, data: v }));
-          performBatchWrite(itemsToUpsert, []).catch(() => {});
-          callback(stored);
-          return;
-        }
+        callback([]);
+        return;
       }
       saveVehicles(list);
       callback(list);
@@ -165,13 +164,8 @@ export function subscribeToDrivers(callback: (drivers: Driver[]) => void) {
     } else {
       const list = data || [];
       if (list.length === 0) {
-        const stored = getStoredDrivers();
-        if (stored.length > 0) {
-          const itemsToUpsert = stored.map(d => ({ collectionName: 'drivers', id: d.id, data: d }));
-          performBatchWrite(itemsToUpsert, []).catch(() => {});
-          callback(stored);
-          return;
-        }
+        callback([]);
+        return;
       }
       saveDrivers(list);
       callback(list);
@@ -210,13 +204,8 @@ export function subscribeToDestinations(callback: (destinations: DestinationHosp
     } else {
       const list = data || [];
       if (list.length === 0) {
-        const stored = getStoredDestinations();
-        if (stored.length > 0) {
-          const itemsToUpsert = stored.map(d => ({ collectionName: 'destinations', id: d.id, data: d }));
-          performBatchWrite(itemsToUpsert, []).catch(() => {});
-          callback(stored);
-          return;
-        }
+        callback([]);
+        return;
       }
       saveDestinations(list);
       callback(list);
@@ -262,13 +251,8 @@ export function subscribeToTrips(callback: (trips: Trip[]) => void) {
         .filter(t => !deletedIds.includes(t.id));
 
       if (list.length === 0) {
-        const stored = getStoredTrips().filter(t => !deletedIds.includes(t.id));
-        if (stored.length > 0) {
-          const itemsToUpsert = stored.map(t => ({ collectionName: 'trips', id: t.id, data: t }));
-          performBatchWrite(itemsToUpsert, []).catch(() => {});
-          callback(stored);
-          return;
-        }
+        callback([]);
+        return;
       }
       saveTrips(list);
       callback(list);

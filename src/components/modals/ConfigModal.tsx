@@ -250,6 +250,38 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
             </div>
           </div>
 
+          {/* Opções de Limpeza para Produção */}
+          {isAdmin && (
+            <div className="border border-slate-200 rounded-lg p-4 bg-rose-50/40 space-y-3">
+              <div>
+                <h5 className="font-bold text-rose-900 text-xs flex items-center gap-1.5">
+                  <Trash2 className="w-4 h-4 text-rose-600" />
+                  Limpeza de Dados para Produção
+                </h5>
+                <p className="text-[11px] text-rose-700 mt-0.5">Use estas opções para zerar o sistema antes de iniciar o uso real.</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-1">
+                {confirmClear ? (
+                  <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-rose-200 shadow-sm">
+                    <span className="text-xs text-rose-800 font-bold px-1">Deseja apagar TUDO do sistema?</span>
+                    <button type="button" onClick={() => setConfirmClear(false)} className="px-3 py-1.5 text-xs text-slate-600 bg-slate-50 rounded hover:bg-slate-100 cursor-pointer">Cancelar</button>
+                    <button type="button" onClick={() => { onClearAllData(); onClose(); }} className="px-3 py-1.5 text-xs text-white bg-rose-600 rounded hover:bg-rose-700 font-bold cursor-pointer">Confirmar EXCLUSÃO TOTAL</button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClear(true)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs shadow-sm cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Zerar Sistema Completo (Pacientes + Viagens)
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
 
           {/* Footer Action */}
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">

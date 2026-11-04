@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   FileText, Download, ShieldCheck, Building2, UserCheck, 
-  Calendar, CheckCircle, AlertCircle, HelpCircle, ArrowRight, Database
+  Calendar, CheckCircle, AlertCircle, HelpCircle, ArrowRight, Database,
+  RotateCcw, Trash2
 } from 'lucide-react';
 import { Trip, Driver, MunicipalConfig, Patient } from '../types';
 import { downloadBpaFile, BpaItem } from '../utils/bpaExport';
@@ -14,6 +15,9 @@ interface BpaExportViewProps {
   onUpdateDriver: (driver: Driver) => void;
   onUpdateConfig: (newConfig: MunicipalConfig) => void;
   showToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
+  onClearTripsOnly: () => void;
+  onClearSystem: () => void;
+  isAdmin?: boolean;
 }
 
 export const BpaExportView: React.FC<BpaExportViewProps> = ({
@@ -23,9 +27,14 @@ export const BpaExportView: React.FC<BpaExportViewProps> = ({
   config,
   onUpdateDriver,
   onUpdateConfig,
-  showToast
+  showToast,
+  onClearTripsOnly,
+  onClearSystem,
+  isAdmin
 }) => {
-  const [competencia, setCompetencia] = useState('2026-09');
+  const [exportMode, setExportMode] = useState<'monthly' | 'daily'>('monthly');
+  const [competencia, setCompetencia] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [cnes, setCnes] = useState(config.cnesUnit || '2531482');
   const [defaultProcedure, setDefaultProcedure] = useState('0401010010'); // Transporte Sanitário / Atendimento
   const [defaultCbo, setDefaultCbo] = useState('515125'); // Motorista
@@ -75,15 +84,21 @@ export const BpaExportView: React.FC<BpaExportViewProps> = ({
     }
   };
 
-  // Filter trips for selected competencia (YYYY-MM)
+  // Filter trips for selected competencia (YYYY-MM) or date (YYYY-MM-DD)
   const cleanComp = competencia.replace('-', '');
-  const year = cleanComp.slice(0, 4);
-  const month = cleanComp.slice(4, 6);
+  const year = competencia.split('-')[0];
+  const month = competencia.split('-')[1];
 
   const filteredTrips = trips.filter(trip => {
     if (!trip.departureDate) return false;
-    const [tYear, tMonth] = trip.departureDate.split('-');
-    return tYear === year && tMonth === month && trip.status === 'completed';
+    if (trip.status !== 'completed') return false;
+
+    if (exportMode === 'daily') {
+      return trip.departureDate === selectedDate;
+    } else {
+      const [tYear, tMonth] = trip.departureDate.split('-');
+      return tYear === year && tMonth === month;
+    }
   });
 
   // Extract all boarded passengers from completed trips in this period
@@ -101,7 +116,7 @@ export const BpaExportView: React.FC<BpaExportViewProps> = ({
         
         // Calculate age
         const birthYear = parseInt(birthDate.split('-')[0]) || 1980;
-        const currentYear = parseInt(year) || 2026;
+        const currentYear = parseInt(year) || new Date().getFullYear();
         const age = Math.max(0, currentYear - birthYear);
 
         bpaItems.push({
@@ -127,11 +142,12 @@ export const BpaExportView: React.FC<BpaExportViewProps> = ({
       return;
     }
     if (bpaItems.length === 0) {
-      showToast('Nenhum atendimento/passageiro encontrado para exportar na competência selecionada.', 'error');
+      showToast(`Nenhum atendimento encontrado para exportar na ${exportMode === 'daily' ? 'data' : 'competência'} selecionada.`, 'error');
       return;
     }
-    downloadBpaFile(cnes, cleanComp, bpaItems);
-    showToast(`Arquivo BPA_${cleanComp}_${cnes}.txt gerado e baixado com sucesso!`, 'success');
+    downloadBpaFile(cnes, cleanComp, bpaItems, exportMode === 'daily' ? selectedDate : undefined);
+    const label = exportMode === 'daily' ? `BPA_DIA_${selectedDate.replace(/-/g, '')}` : `BPA_${cleanComp}`;
+    showToast(`Arquivo ${label}_${cnes}.txt gerado e baixado com sucesso!`, 'success');
   };
 
   return (
@@ -147,10 +163,37 @@ export const BpaExportView: React.FC<BpaExportViewProps> = ({
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Faturamento e Exportação BPA-I</h1>
           <p className="text-slate-300 text-sm mt-1">
-            Gerencie os dados dos profissionais (CNS/CBO) e gere o arquivo texto oficial de largura fixa para o faturamento do TFD.
+            Gere o arquivo texto oficial para o faturamento do TFD por mês ou por dia.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => {
+                  if (confirm('Deseja excluir APENAS as viagens e faturamento BPA? O cadastro de pacientes será mantido.')) {
+                    onClearTripsOnly();
+                  }
+                }}
+                className="flex items-center gap-2 px-3.5 py-3 bg-amber-900/20 hover:bg-amber-900/30 text-amber-200 rounded-xl text-xs font-bold border border-amber-500/30 transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Zerar Viagens e BPA
+              </button>
+
+              <button
+                onClick={() => {
+                  if (confirm('ATENÇÃO: Deseja realmente ZERAR todo o sistema (viagens e pacientes) para iniciar o uso em produção? Esta ação não pode ser desfeita.')) {
+                    onClearSystem();
+                  }
+                }}
+                className="flex items-center gap-2 px-3.5 py-3 bg-rose-900/20 hover:bg-rose-900/30 text-rose-200 rounded-xl text-xs font-bold border border-rose-500/30 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                Zerar p/ Produção
+              </button>
+            </>
+          )}
           <button
             onClick={handleExport}
             disabled={bpaItems.length === 0}
@@ -164,6 +207,26 @@ export const BpaExportView: React.FC<BpaExportViewProps> = ({
             <span>Gerar e Baixar BPA.txt ({bpaItems.length} reg)</span>
           </button>
         </div>
+      </div>
+
+      {/* Mode Switcher */}
+      <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl w-fit">
+        <button
+          onClick={() => setExportMode('monthly')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            exportMode === 'monthly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Exportação Mensal
+        </button>
+        <button
+          onClick={() => setExportMode('daily')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            exportMode === 'daily' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Exportação por Dia
+        </button>
       </div>
 
       {/* Configuration & Filter Bar */}
@@ -191,15 +254,26 @@ export const BpaExportView: React.FC<BpaExportViewProps> = ({
         <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
           <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5 flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-sky-600" />
-            <span>Competência (AAAAMM)</span>
+            <span>{exportMode === 'daily' ? 'Data do Atendimento' : 'Competência (AAAAMM)'}</span>
           </label>
-          <input
-            type="month"
-            value={competencia}
-            onChange={(e) => setCompetencia(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold text-base focus:ring-2 focus:ring-sky-500 focus:outline-none"
-          />
-          <p className="text-[11px] text-slate-400 mt-1">Filtra viagens concluídas no mês selecionado.</p>
+          {exportMode === 'daily' ? (
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold text-base focus:ring-2 focus:ring-sky-500 focus:outline-none"
+            />
+          ) : (
+            <input
+              type="month"
+              value={competencia}
+              onChange={(e) => setCompetencia(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold text-base focus:ring-2 focus:ring-sky-500 focus:outline-none"
+            />
+          )}
+          <p className="text-[11px] text-slate-400 mt-1">
+            {exportMode === 'daily' ? 'Filtra viagens concluídas nesta data.' : 'Filtra viagens concluídas no mês selecionado.'}
+          </p>
         </div>
 
         <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">

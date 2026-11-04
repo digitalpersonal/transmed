@@ -61,13 +61,21 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
 
     // Hospitais cadastrados em destinations (with deduplication)
     (destinations || []).forEach((d) => {
+      if (!d.name) return;
       const cleanName = normalizeHospitalName(d.name);
-      const cleanCity = d.city.trim().toUpperCase();
-      const key = `${cleanName}_${cleanCity}`;
+      const cleanCity = (d.city || '').trim().toUpperCase();
       
-      // Keep the one already in the map if it's there, but ensure consistency
-      if (!Array.from(hospitalMap.values()).some(h => normalizeHospitalName(h.name) === cleanName && h.city.trim().toUpperCase() === cleanCity)) {
-        hospitalMap.set(d.id, d);
+      const exists = Array.from(hospitalMap.values()).some(h => 
+        normalizeHospitalName(h.name) === cleanName && 
+        (h.city || '').trim().toUpperCase() === cleanCity
+      );
+
+      if (!exists) {
+        hospitalMap.set(d.id, {
+          ...d,
+          name: d.name.trim(),
+          city: d.city.trim()
+        });
       }
     });
 
@@ -231,6 +239,13 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+
+    // Strict City Validation: Must be in the official list
+    const isOfficialCity = allAvailableCities.some(c => c.label === formData.destinationCity);
+    if (!isOfficialCity) {
+      setErrors(prev => ({ ...prev, destinationCity: 'Por favor, selecione uma cidade da lista oficial (45 cidades cadastradas).' }));
+      return;
+    }
 
     const primaryHospId = formData.destinationIds?.[0];
     const primaryHosp = primaryHospId ? allAvailableHospitals.find(h => h.id === primaryHospId) : null;

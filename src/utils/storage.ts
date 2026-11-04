@@ -67,11 +67,10 @@ export function getStoredPatients(): Patient[] {
   try {
     const data = safeGetItem(STORAGE_KEYS.PATIENTS);
     if (!data) {
-      safeSetItem(STORAGE_KEYS.PATIENTS, JSON.stringify(INITIAL_PATIENTS));
-      return INITIAL_PATIENTS;
+      return [];
     }
     const parsed: Patient[] = JSON.parse(data);
-    if (!Array.isArray(parsed)) return INITIAL_PATIENTS;
+    if (!Array.isArray(parsed)) return [];
     return parsed.map((p) => {
       let rawPhone = (p.whatsapp || p.phone || '').trim();
       const digitsOnly = rawPhone.replace(/\D/g, '');
@@ -128,12 +127,10 @@ export function getStoredTrips(): Trip[] {
     const deletedIds = getDeletedTripIds();
     const data = safeGetItem(STORAGE_KEYS.TRIPS);
     if (!data) {
-      const filteredInitial = INITIAL_TRIPS.filter(t => !deletedIds.includes(t.id));
-      safeSetItem(STORAGE_KEYS.TRIPS, JSON.stringify(filteredInitial));
-      return filteredInitial;
+      return [];
     }
     const parsed = JSON.parse(data);
-    if (!Array.isArray(parsed)) return INITIAL_TRIPS.filter(t => !deletedIds.includes(t.id));
+    if (!Array.isArray(parsed)) return [];
     return parsed
       .map((t: any) => ({
         ...t,
@@ -142,7 +139,7 @@ export function getStoredTrips(): Trip[] {
       .filter((t) => !deletedIds.includes(t.id));
   } catch (e) {
     console.error('Error loading trips from storage', e);
-    return INITIAL_TRIPS;
+    return [];
   }
 }
 
@@ -169,9 +166,10 @@ export function clearAllPersistentData(): void {
   try {
     Object.values(STORAGE_KEYS).forEach(key => {
       if (key === STORAGE_KEYS.USERS || key === STORAGE_KEYS.CONFIG) return;
-      window.localStorage.removeItem(key);
+      // Set to empty array string instead of removing, to prevent INITIAL_DATA auto-seeding
+      window.localStorage.setItem(key, JSON.stringify([]));
     });
-    // Restore defaults for essentials
+    // Restore essentials with clean lists but keep the keys present
     safeSetItem(STORAGE_KEYS.VEHICLES, JSON.stringify(INITIAL_VEHICLES));
     safeSetItem(STORAGE_KEYS.DRIVERS, JSON.stringify(INITIAL_DRIVERS));
     safeSetItem(STORAGE_KEYS.DESTINATION_CITIES, JSON.stringify(INITIAL_DESTINATION_CITIES));
@@ -186,9 +184,9 @@ export function getStoredDestinations(): DestinationHospital[] {
     let destinationsList: DestinationHospital[] = [];
     if (data) {
       const parsed = JSON.parse(data);
-      destinationsList = Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_DESTINATIONS;
+      destinationsList = Array.isArray(parsed) ? parsed : [];
     } else {
-      destinationsList = [...INITIAL_DESTINATIONS];
+      destinationsList = [];
     }
 
     // Strictly deduplicate destinations list by name and city using robust normalization

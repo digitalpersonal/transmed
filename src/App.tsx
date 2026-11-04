@@ -58,7 +58,7 @@ import {
   seedAllFirestore, clearTripsAndPatientsFirestore,
   subscribeToUsers, deleteDestinationFirestore
 } from './lib/supabaseSync';
-import { auth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, sendPasswordResetEmail } from './lib/supabase';
+import { auth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, sendPasswordResetEmail, supabase } from './lib/supabase';
 import { Navbar, ActiveTab } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
 import { TripsView } from './components/TripsView';
@@ -249,14 +249,36 @@ export default function App() {
 
   const [destinationCities, setDestinationCities] = useState<DestinationCity[]>(() => {
     const stored = getStoredDestinationCities();
-    if (stored.length < INITIAL_DESTINATION_CITIES.length) {
-      const existingNames = new Set(stored.map(c => c.cityName.toUpperCase()));
-      const missing = INITIAL_DESTINATION_CITIES.filter(c => !existingNames.has(c.cityName.toUpperCase()));
-      const merged = [...stored, ...missing];
+    const officialNames = new Set(INITIAL_DESTINATION_CITIES.map(c => c.cityName.toUpperCase().trim()));
+    
+    // We want to keep official cities + any cities that were added manually (and are not already in official)
+    const existingNames = new Set<string>();
+    const merged: DestinationCity[] = [];
+
+    // 1. Add official cities first to ensure they are the base
+    INITIAL_DESTINATION_CITIES.forEach(c => {
+      const name = c.cityName.toUpperCase().trim();
+      if (!existingNames.has(name)) {
+        merged.push(c);
+        existingNames.add(name);
+      }
+    });
+
+    // 2. Add stored cities that are NOT in the official list (manually added)
+    stored.forEach(c => {
+      const name = c.cityName.toUpperCase().trim();
+      if (!existingNames.has(name)) {
+        merged.push(c);
+        existingNames.add(name);
+      }
+    });
+    
+    // Save the cleaned list back to storage if it changed
+    if (merged.length !== stored.length) {
       saveDestinationCities(merged);
-      return merged;
     }
-    return stored;
+    
+    return merged;
   });
   const [isDestinationCityModalOpen, setIsDestinationCityModalOpen] = useState(false);
   const [editingDestinationCity, setEditingDestinationCity] = useState<DestinationCity | null>(null);
@@ -505,13 +527,20 @@ export default function App() {
       const destCity = (row.cidadeDestino || row.destino || 'Campinas').trim();
       const destHospital = (row.destino || destCity).trim();
 
-      // Validate City against official list
+      // Validate City against official list (STRICT)
       const officialCity = localCities.find(c => 
-        c.cityName.toUpperCase() === destCity.toUpperCase() || 
-        destCity.toUpperCase().includes(c.cityName.toUpperCase())
+        c.cityName.toUpperCase().trim() === destCity.toUpperCase().trim() || 
+        destCity.toUpperCase().trim().includes(c.cityName.toUpperCase().trim()) ||
+        c.cityName.toUpperCase().trim().includes(destCity.toUpperCase().trim())
       );
       
-      const validatedCityName = officialCity ? officialCity.cityName : destCity;
+      // If city is not official and not in currently added list, SKIP THIS ROW to keep data integrity
+      if (!officialCity) {
+        console.warn(`Excel Import: Skipping row ${idx + 1} due to invalid destination city: "${destCity}"`);
+        return; 
+      }
+
+      const validatedCityName = officialCity.cityName;
       const validatedHospitalName = destHospital;
 
       // Ensure Destination & City exists (runs for all rows)
@@ -980,6 +1009,12 @@ export default function App() {
 
     try {
       await Promise.all(duplicatesToRemove.map(id => deleteDestinationFirestore(id)));
+      // Re-fetch to ensure local state is perfectly synced after deletion
+      const { data } = await supabase.from('destinations').select('*');
+      if (data) {
+        setDestinations(data);
+        saveDestinations(data);
+      }
       showToast(`${duplicatesToRemove.length} hospitais duplicados foram removidos com sucesso!`, 'success');
     } catch (error) {
       console.error('Cleanup error:', error);
@@ -1255,6 +1290,7 @@ export default function App() {
                 showToast('Erro ao remover dados do banco de dados.', 'error');
               }
             }}
+            onClearTripsOnly={handleClearTripsOnly}
             onEditTrip={(trip) => {
               setEditingTrip(trip);
               setIsTripModalOpen(true);
@@ -1401,6 +1437,9 @@ export default function App() {
               updateConfigFirestore(newCfg).catch(() => {});
             }}
             showToast={showToast}
+            onClearTripsOnly={handleClearTripsOnly}
+            onClearSystem={handleClearAllData}
+            isAdmin={isAdmin}
           />
         )}
       </main>

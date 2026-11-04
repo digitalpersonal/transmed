@@ -146,10 +146,16 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
     const uniqueMap = new Map<string, DestinationHospital>();
     filtered.forEach(d => {
       const cleanHosp = normalizeHospitalName(d.name);
-      const cleanCity = d.city.toUpperCase().trim();
+      const cleanCity = (d.city || '').toUpperCase().trim();
       const key = `${cleanHosp}_${cleanCity}`;
-      if (!uniqueMap.has(key)) {
-        uniqueMap.set(key, d);
+      
+      const alreadyExists = Array.from(uniqueMap.values()).some(h => 
+        normalizeHospitalName(h.name) === cleanHosp && 
+        (h.city || '').toUpperCase().trim() === cleanCity
+      );
+
+      if (!alreadyExists) {
+        uniqueMap.set(d.id, d);
       }
     });
     return Array.from(uniqueMap.values());

@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+@layer base {
+  @media print {
+    @page {
+      margin: 1cm;
+      size: portrait;
+    }
+    body {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+  }
+}
+
 @media print {
   html, body, #root {
     background-color: #ffffff !important;

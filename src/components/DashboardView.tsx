@@ -18,7 +18,8 @@ import {
   Trash2,
   Edit,
   X,
-  Search
+  Search,
+  RotateCcw
 } from 'lucide-react';
 import { DestinationHospital, MunicipalConfig, Patient, Trip, Vehicle, ensurePassengerArray } from '../types';
 import { formatDateBR, formatPlate, getTripStatusLabel, getVehicleTypeLabel } from '../utils/formatters';
@@ -37,6 +38,7 @@ interface DashboardViewProps {
   onPrintManifest: (trip: Trip) => void;
   onOpenClosureModal: (trip: Trip) => void;
   onClearSystem: () => void;
+  onClearTripsOnly: () => void;
   onEditTrip: (trip: Trip) => void;
   onCancelBooking: (tripId: string, passengerId: string) => void;
   isAdmin?: boolean;
@@ -56,6 +58,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onPrintManifest,
   onOpenClosureModal,
   onClearSystem,
+  onClearTripsOnly,
   onEditTrip,
   onCancelBooking,
   isAdmin,
@@ -162,6 +165,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 >
                   <FileSpreadsheet className="w-4 h-4" />
                   Importar Planilha Excel
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (confirm('Deseja excluir APENAS as viagens e faturamento BPA? O cadastro de pacientes será mantido.')) {
+                      onClearTripsOnly();
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3.5 py-2 bg-amber-900/40 hover:bg-amber-800 text-amber-200 rounded-lg text-xs font-bold border border-amber-500/30 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Zerar Viagens e BPA
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (confirm('ATENÇÃO: Deseja realmente ZERAR todo o sistema (viagens e pacientes) para iniciar o uso em produção? Esta ação não pode ser desfeita.')) {
+                      onClearSystem();
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3.5 py-2 bg-rose-900/40 hover:bg-rose-800 text-rose-200 rounded-lg text-xs font-bold border border-rose-500/30 transition-colors cursor-pointer ml-auto sm:ml-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Zerar p/ Produção
                 </button>
               </>
             )}

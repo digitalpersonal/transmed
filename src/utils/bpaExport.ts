@@ -106,14 +106,19 @@ export function generateBpaContent(cnesUnidade: string, competencia: string, ite
 /**
  * Força o download do arquivo BPA (.txt) no navegador do usuário (Compatível com Vite)
  */
-export function downloadBpaFile(cnesUnidade: string, competencia: string, items: BpaItem[]): void {
+export function downloadBpaFile(cnesUnidade: string, competencia: string, items: BpaItem[], selectedDate?: string): void {
   const content = generateBpaContent(cnesUnidade, competencia, items);
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   
   const compClean = competencia.replace(/\D/g, '').slice(0, 6) || '202609';
   const cnesClean = cnesUnidade.replace(/\D/g, '').slice(0, 7) || '0000000';
-  const filename = `BPA_${compClean}_${cnesClean}.txt`;
+  
+  let filename = `BPA_${compClean}_${cnesClean}.txt`;
+  if (selectedDate) {
+    const dateClean = selectedDate.replace(/\D/g, '');
+    filename = `BPA_DIA_${dateClean}_${cnesClean}.txt`;
+  }
 
   const link = document.createElement('a');
   link.href = url;
