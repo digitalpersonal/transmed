@@ -43,20 +43,31 @@ export async function clearTripsAndPatientsFirestore(tripsOnly = false) {
 
     // 2. Clear Supabase with a more robust approach
     if (tripsOnly) {
-      // Clear trips one by one if bulk delete fails or as a fallback
-      const { data: allTrips } = await supabase.from('trips').select('id');
-      if (allTrips && allTrips.length > 0) {
-        await supabase.from('trips').delete().in('id', allTrips.map(t => t.id));
+      // Clear ALL trips using a filter that matches everything
+      const { error: tripError } = await supabase.from('trips').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (tripError) {
+        console.warn('Bulk delete failed, trying fallback:', tripError);
+        const { data: allTrips } = await supabase.from('trips').select('id').limit(10000);
+        if (allTrips && allTrips.length > 0) {
+          await supabase.from('trips').delete().in('id', allTrips.map(t => t.id));
+        }
       }
     } else {
-      const { data: allTrips } = await supabase.from('trips').select('id');
-      const { data: allPats } = await supabase.from('patients').select('id');
+      // Clear BOTH trips and patients
+      const { error: tripError } = await supabase.from('trips').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const { error: patError } = await supabase.from('patients').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       
-      if (allTrips && allTrips.length > 0) {
-        await supabase.from('trips').delete().in('id', allTrips.map(t => t.id));
-      }
-      if (allPats && allPats.length > 0) {
-        await supabase.from('patients').delete().in('id', allPats.map(pt => pt.id));
+      if (tripError || patError) {
+        console.warn('Bulk delete failed, trying fallback:', tripError || patError);
+        const { data: allTrips } = await supabase.from('trips').select('id').limit(10000);
+        const { data: allPats } = await supabase.from('patients').select('id').limit(10000);
+        
+        if (allTrips && allTrips.length > 0) {
+          await supabase.from('trips').delete().in('id', allTrips.map(t => t.id));
+        }
+        if (allPats && allPats.length > 0) {
+          await supabase.from('patients').delete().in('id', allPats.map(pt => pt.id));
+        }
       }
     }
 

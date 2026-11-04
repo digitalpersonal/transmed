@@ -71,7 +71,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
     if (!term) return patients;
     const cleanSearchTerm = term.replace(/\D/g, '');
 
-    return patients.filter((p) => {
+    const results = patients.filter((p) => {
       const patientNameNormalized = normalizeString(p.name);
       const cleanCpf = (p.cpf || '').replace(/\D/g, '');
       const cleanSus = (p.susCard || '').replace(/\D/g, '');
@@ -82,6 +82,8 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
 
       return nameMatch || cpfMatch || susMatch;
     });
+
+    return results.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   }, [patients, patientSearch]);
 
   const handleSelectPatient = (p: Patient) => {

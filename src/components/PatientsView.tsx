@@ -54,28 +54,32 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
       .toLowerCase();
   };
 
-  const filteredPatients = useMemo(() => patients.filter((p) => {
-    const term = normalizeString(searchTerm.trim());
-    const cleanDigits = term.replace(/\D/g, '');
-    const matchSearch =
-      !term ||
-      normalizeString(p.name).includes(term) ||
-      (cleanDigits && (p.cpf || '').replace(/\D/g, '').includes(cleanDigits)) ||
-      (cleanDigits && (p.susCard || '').replace(/\D/g, '').includes(cleanDigits)) ||
-      (cleanDigits && ((p.whatsapp || '') + (p.phone || '')).replace(/\D/g, '').includes(cleanDigits)) ||
-      (p.address && normalizeString(p.address).includes(term)) ||
-      (p.boardingAddress && normalizeString(p.boardingAddress).includes(term)) ||
-      (p.neighborhood && normalizeString(p.neighborhood).includes(term)) ||
-      (p.companionName && normalizeString(p.companionName).includes(term));
+  const filteredPatients = useMemo(() => {
+    const filtered = patients.filter((p) => {
+      const term = normalizeString(searchTerm.trim());
+      const cleanDigits = term.replace(/\D/g, '');
+      const matchSearch =
+        !term ||
+        normalizeString(p.name).includes(term) ||
+        (cleanDigits && (p.cpf || '').replace(/\D/g, '').includes(cleanDigits)) ||
+        (cleanDigits && (p.susCard || '').replace(/\D/g, '').includes(cleanDigits)) ||
+        (cleanDigits && ((p.whatsapp || '') + (p.phone || '')).replace(/\D/g, '').includes(cleanDigits)) ||
+        (p.address && normalizeString(p.address).includes(term)) ||
+        (p.boardingAddress && normalizeString(p.boardingAddress).includes(term)) ||
+        (p.neighborhood && normalizeString(p.neighborhood).includes(term)) ||
+        (p.companionName && normalizeString(p.companionName).includes(term));
 
-    const matchCondition = conditionFilter === 'all' || p.condition === conditionFilter;
-    const matchCompanion =
-      companionFilter === 'all' ||
-      (companionFilter === 'yes' && p.companionRequired) ||
-      (companionFilter === 'no' && !p.companionRequired);
+      const matchCondition = conditionFilter === 'all' || p.condition === conditionFilter;
+      const matchCompanion =
+        companionFilter === 'all' ||
+        (companionFilter === 'yes' && p.companionRequired) ||
+        (companionFilter === 'no' && !p.companionRequired);
 
-    return matchSearch && matchCondition && matchCompanion;
-  }), [patients, searchTerm, conditionFilter, companionFilter]);
+      return matchSearch && matchCondition && matchCompanion;
+    });
+
+    return filtered.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [patients, searchTerm, conditionFilter, companionFilter]);
 
   const totalPages = Math.ceil(filteredPatients.length / PAGE_SIZE);
   const displayedPatients = useMemo(() => 
