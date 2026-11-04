@@ -390,16 +390,27 @@ export async function performBatchWrite(
 
   // Execute upserts in parallel
   const upsertPromises = Object.entries(upsertGroups).map(async ([table, rows]) => {
+    console.log(`[SupabaseSync] Upserting ${rows.length} rows to ${table}`);
     const { error } = await supabase.from(table).upsert(rows);
-    if (error) throw error;
+    if (error) {
+      console.error(`[SupabaseSync] Error upserting to ${table}:`, error);
+      throw error;
+    }
+    console.log(`[SupabaseSync] Successfully upserted to ${table}`);
   });
 
   // Execute deletes in parallel
   const deletePromises = Object.entries(deleteGroups).map(async ([table, ids]) => {
+    console.log(`[SupabaseSync] Deleting ${ids.length} rows from ${table}`);
     const { error } = await supabase.from(table).delete().in('id', ids);
-    if (error) throw error;
+    if (error) {
+      console.error(`[SupabaseSync] Error deleting from ${table}:`, error);
+      throw error;
+    }
+    console.log(`[SupabaseSync] Successfully deleted from ${table}`);
   });
 
   await Promise.all([...upsertPromises, ...deletePromises]);
+  console.log('[SupabaseSync] Batch write completed successfully');
 }
 

@@ -208,34 +208,53 @@ export default function App() {
   }, []);
 
   // Load from storage and Firestore on mount
+  const [isDataLoading, setIsDataLoading] = useState(true);
+
   useEffect(() => {
+    let loadedCount = 0;
+    const totalToLoad = 7; // Patients, Vehicles, Drivers, Destinations, Trips, Config, Cities
+
+    const checkAllLoaded = () => {
+      loadedCount++;
+      if (loadedCount === totalToLoad) {
+        setIsDataLoading(false);
+      }
+    };
+
     const unsubPatients = subscribeToPatients((p) => {
       console.log('[App] Received patients:', p.length);
       setPatients(p);
+      checkAllLoaded();
     });
     const unsubVehicles = subscribeToVehicles((v) => {
       console.log('[App] Received vehicles:', v.length);
       setVehicles(v);
+      checkAllLoaded();
     });
     const unsubDrivers = subscribeToDrivers((d) => {
       console.log('[App] Received drivers:', d.length);
       setDrivers(d);
+      checkAllLoaded();
     });
     const unsubDestinations = subscribeToDestinations((d) => {
       console.log('[App] Received destinations:', d.length);
       setDestinations(d);
+      checkAllLoaded();
     });
     const unsubTrips = subscribeToTrips((t) => {
       console.log('[App] Received trips:', t.length);
       setTrips(t);
+      checkAllLoaded();
     });
     const unsubConfig = subscribeToConfig((c) => {
       console.log('[App] Received config');
       setConfig(c);
+      checkAllLoaded();
     });
     const unsubCities = subscribeToDestinationCities((citiesList) => {
       console.log('[App] Received cities:', citiesList.length);
       setDestinationCities(citiesList);
+      checkAllLoaded();
     });
 
     return () => {
@@ -1057,7 +1076,7 @@ export default function App() {
   };
 
   // 1. Loading screen
-  if (isAuthLoading) {
+  if (isAuthLoading || isDataLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4">
