@@ -91,9 +91,22 @@ export const TripsView: React.FC<TripsViewProps> = ({
     });
 
     return filtered.sort((a, b) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const isTodayA = a.departureDate === today;
+      const isTodayB = b.departureDate === today;
+
+      if (isTodayA && !isTodayB) return -1;
+      if (!isTodayA && isTodayB) return 1;
+
       if (a.departureDate === b.departureDate) {
         return (a.departureTime || '').localeCompare(b.departureTime || '');
       }
+
+      // If we are looking at completed trips, usually we want descending (newest first)
+      if (statusFilter === 'completed') {
+        return (b.departureDate || '').localeCompare(a.departureDate || '');
+      }
+
       return (a.departureDate || '').localeCompare(b.departureDate || '');
     });
   }, [trips, searchTerm, statusFilter]);
@@ -187,7 +200,11 @@ export const TripsView: React.FC<TripsViewProps> = ({
             return (
               <div
                 key={trip.id}
-                className={`bg-white rounded-xl border ${isToday ? 'border-amber-400 ring-1 ring-amber-400' : 'border-slate-200'} overflow-hidden shadow-xs hover:shadow-md transition-shadow`}
+                className={`rounded-xl border-2 overflow-hidden shadow-xs transition-shadow ${
+                  isToday 
+                    ? 'bg-amber-50/40 border-amber-400 ring-2 ring-amber-400/20 shadow-md' 
+                    : 'bg-white border-slate-200 hover:shadow-md'
+                }`}
               >
                 {isToday && (
                   <div className="flex items-center gap-1.5 text-amber-700 text-[10px] font-bold uppercase bg-amber-50 px-5 py-1.5 border-b border-amber-200">

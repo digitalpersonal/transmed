@@ -66,9 +66,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
 
   const scheduledTrips = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
     return trips
       .filter((t) => t.status === 'scheduled' || t.status === 'in_route')
       .sort((a, b) => {
+        const isTodayA = a.departureDate === today;
+        const isTodayB = b.departureDate === today;
+        
+        if (isTodayA && !isTodayB) return -1;
+        if (!isTodayA && isTodayB) return 1;
+
         const dateCompare = a.departureDate.localeCompare(b.departureDate);
         if (dateCompare !== 0) return dateCompare;
         return a.departureTime.localeCompare(b.departureTime);
@@ -373,7 +380,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 return (
                   <div
                     key={trip.id}
-                    className={`p-4 bg-white rounded-xl border ${isToday ? 'border-amber-400 ring-1 ring-amber-400' : 'border-slate-200'} hover:shadow-md transition-shadow space-y-3`}
+                    className={`p-4 rounded-xl border-2 transition-shadow space-y-3 ${
+                      isToday 
+                        ? 'bg-amber-50/40 border-amber-400 ring-2 ring-amber-400/20 shadow-md' 
+                        : 'bg-white border-slate-200 hover:shadow-md'
+                    }`}
                   >
                     {isToday && (
                       <div className="flex items-center gap-1.5 text-amber-700 text-[10px] font-bold uppercase mb-2 bg-amber-50 px-2 py-1 rounded">
