@@ -207,7 +207,7 @@ export default function App() {
     };
   }, []);
 
-  // Load from storage and Firestore on mount
+  // Load from Supabase on mount
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   useEffect(() => {
@@ -222,37 +222,37 @@ export default function App() {
     };
 
     const unsubPatients = subscribeToPatients((p) => {
-      console.log('[App] Received patients:', p.length);
+      console.log('[App] Received patients from Supabase:', p.length);
       setPatients(p);
       checkAllLoaded();
     });
     const unsubVehicles = subscribeToVehicles((v) => {
-      console.log('[App] Received vehicles:', v.length);
+      console.log('[App] Received vehicles from Supabase:', v.length);
       setVehicles(v);
       checkAllLoaded();
     });
     const unsubDrivers = subscribeToDrivers((d) => {
-      console.log('[App] Received drivers:', d.length);
+      console.log('[App] Received drivers from Supabase:', d.length);
       setDrivers(d);
       checkAllLoaded();
     });
     const unsubDestinations = subscribeToDestinations((d) => {
-      console.log('[App] Received destinations:', d.length);
+      console.log('[App] Received destinations from Supabase:', d.length);
       setDestinations(d);
       checkAllLoaded();
     });
     const unsubTrips = subscribeToTrips((t) => {
-      console.log('[App] Received trips:', t.length);
+      console.log('[App] Received trips from Supabase:', t.length);
       setTrips(t);
       checkAllLoaded();
     });
     const unsubConfig = subscribeToConfig((c) => {
-      console.log('[App] Received config');
+      console.log('[App] Received config from Supabase');
       setConfig(c);
       checkAllLoaded();
     });
     const unsubCities = subscribeToDestinationCities((citiesList) => {
-      console.log('[App] Received cities:', citiesList.length);
+      console.log('[App] Received cities from Supabase:', citiesList.length);
       setDestinationCities(citiesList);
       checkAllLoaded();
     });
@@ -703,24 +703,13 @@ export default function App() {
     // Final sorting of trips by date (asc)
     updatedTrips.sort((a, b) => a.departureDate.localeCompare(b.departureDate));
 
-    // Save states locally
+    // Save states locally (only React state update, NO localStorage)
     setPatients(localPatients);
-    savePatients(localPatients);
-    
     setVehicles(localVehicles);
-    saveVehicles(localVehicles);
-
     setDrivers(localDrivers);
-    saveDrivers(localDrivers);
-
     setDestinations(localDestinations);
-    saveDestinations(localDestinations);
-
     setDestinationCities(localCities);
-    saveDestinationCities(localCities);
-
     setTrips(updatedTrips);
-    saveTrips(updatedTrips);
 
     // Sync everything to Supabase using high-speed bulk writes to avoid browser request limits
     try {
@@ -752,10 +741,10 @@ export default function App() {
         localCities.length > 0 ? updateDestinationCitiesFirestore(localCities) : Promise.resolve()
       ]);
 
-      showToast(`Planilha importada! ${localPatients.length} pacientes, ${updatedTrips.length} viagens, ${localVehicles.length} veículos e ${localDrivers.length} motoristas sincronizados com sucesso no Supabase!`, 'success');
+      showToast(`Planilha importada! ${localPatients.length} pacientes, ${updatedTrips.length} viagens sincronizados com sucesso no Supabase!`, 'success');
     } catch (err) {
       console.error('Error synchronizing spreadsheet data to Supabase:', err);
-      showToast('Importação concluída localmente. Algumas sincronizações com a nuvem podem levar alguns segundos.', 'info');
+      showToast('Importação concluída localmente. Erro ao sincronizar com a nuvem.', 'error');
     }
   };
 
@@ -859,7 +848,6 @@ export default function App() {
 
     const updatedTrips = trips.map(t => t.id === tripId ? updatedTrip : t);
     setTrips(updatedTrips);
-    saveTrips(updatedTrips);
     upsertTripFirestore(updatedTrip).catch(() => {});
     showToast('Acompanhante removido com sucesso!');
   };
@@ -931,7 +919,6 @@ export default function App() {
 
     const updatedTrips = trips.map((t) => (t.id === tripId ? updatedTrip : t));
     setTrips(updatedTrips);
-    saveTrips(updatedTrips);
     upsertTripFirestore(updatedTrip).catch(() => {});
 
     const targetVehicle = vehicles.find((v) => v.id === targetTrip.vehicleId);
@@ -940,7 +927,6 @@ export default function App() {
         v.id === targetVehicle.id ? { ...v, currentKm: closure.endKm, status: 'available' as const } : v
       );
       setVehicles(updatedVehicles);
-      saveVehicles(updatedVehicles);
       const vToUpdate = updatedVehicles.find(v => v.id === targetVehicle.id);
       if (vToUpdate) upsertVehicleFirestore(vToUpdate).catch(() => {});
     }
@@ -1012,7 +998,6 @@ export default function App() {
 
     const cleaned = Array.from(uniqueMap.values());
     setDestinations(cleaned);
-    saveDestinations(cleaned);
 
     try {
       await Promise.all(duplicatesToRemove.map(id => deleteDestinationFirestore(id)));
@@ -1036,7 +1021,6 @@ export default function App() {
     }
 
     setDestinationCities(updated);
-    saveDestinationCities(updated);
 
     try {
       await updateDestinationCitiesFirestore(updated);
