@@ -175,9 +175,20 @@ export function getStoredDestinations(): DestinationHospital[] {
       destinationsList = [...INITIAL_DESTINATIONS];
     }
 
+    // Strictly deduplicate destinations list by name and city
+    const uniqueMap = new Map<string, DestinationHospital>();
+    destinationsList.forEach(d => {
+      if (!d.name) return;
+      const key = `${d.name.toLowerCase().trim()}_${(d.city || '').toLowerCase().trim()}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, d);
+      }
+    });
+    destinationsList = Array.from(uniqueMap.values());
+
     // Garante que todos os hospitais das cidades cadastradas estejam presentes em destinationsList
     const existingKeys = new Set(
-      destinationsList.map((d) => `${d.name.toLowerCase().trim()}_${d.city.toLowerCase().trim()}`)
+      destinationsList.map((d) => `${d.name.toLowerCase().trim()}_${(d.city || '').toLowerCase().trim()}`)
     );
 
     let addedCount = 0;
@@ -215,7 +226,16 @@ export function getStoredDestinations(): DestinationHospital[] {
 
 export function saveDestinations(destinations: DestinationHospital[]): void {
   try {
-    safeSetItem(STORAGE_KEYS.DESTINATIONS, JSON.stringify(destinations));
+    const uniqueMap = new Map<string, DestinationHospital>();
+    destinations.forEach(d => {
+      if (!d.name) return;
+      const key = `${d.name.toLowerCase().trim()}_${(d.city || '').toLowerCase().trim()}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, d);
+      }
+    });
+    const cleaned = Array.from(uniqueMap.values());
+    safeSetItem(STORAGE_KEYS.DESTINATIONS, JSON.stringify(cleaned));
   } catch (e) {
     console.error('Error saving destinations', e);
   }
