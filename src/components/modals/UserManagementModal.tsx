@@ -48,7 +48,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     setIsLoggingIn(true);
     setAuthError(null);
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      const loggedIn = await signInWithEmailAndPassword(auth, email.trim(), password);
+      if (loggedIn) {
+        setCurrentUser(loggedIn);
+      }
       showToast('Login de Administrador realizado com sucesso!');
     } catch (err: any) {
       console.error('Login error:', err);
@@ -66,7 +69,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       if (errMsg.includes('Invalid login credentials') && email.trim() === 'digitalpersonal@gmail.com') {
         // Fallback or attempt auto-creation
         try {
-          await createUserWithEmailAndPassword(auth, email.trim(), password);
+          const newAdmin = await createUserWithEmailAndPassword(auth, email.trim(), password);
+          if (newAdmin) {
+            setCurrentUser(newAdmin);
+          }
           showToast('Conta de Administrador criada e logada com sucesso!');
           setIsLoggingIn(false);
           return;
@@ -102,9 +108,9 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   const handleLogout = async () => {
     try {
       await signOut(auth);
+    } finally {
+      setCurrentUser(null);
       showToast('Sessão encerrada.', 'info');
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -157,6 +163,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         email: newEmail.trim(),
         name: newName.trim(),
         role: newRole,
+        password: newPassword.trim(),
         createdAt: new Date().toISOString(),
       };
       await upsertUserFirestore(newUser);

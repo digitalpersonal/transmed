@@ -120,15 +120,15 @@ export function getVehicleStatusLabel(status: VehicleStatus): { label: string; b
 export function getTripStatusLabel(status: TripStatus): { label: string; bg: string; text: string; dot: string } {
   switch (status) {
     case 'scheduled':
-      return { label: 'Agendada', bg: 'bg-sky-50 text-sky-700 border-sky-200', text: 'text-sky-700', dot: 'bg-sky-500' };
+      return { label: 'Confirmada', bg: 'bg-sky-50 text-sky-800 border-sky-300 font-bold', text: 'text-sky-800', dot: 'bg-sky-500' };
     case 'in_route':
-      return { label: 'Em Rota', bg: 'bg-amber-50 text-amber-700 border-amber-200', text: 'text-amber-700', dot: 'bg-amber-500' };
+      return { label: 'Em curso', bg: 'bg-amber-50 text-amber-800 border-amber-300 font-bold', text: 'text-amber-800', dot: 'bg-amber-500' };
     case 'completed':
-      return { label: 'Concluída / Fechada', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500' };
+      return { label: 'Finalizada', bg: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold', text: 'text-emerald-800', dot: 'bg-emerald-500' };
     case 'cancelled':
-      return { label: 'Cancelada', bg: 'bg-rose-50 text-rose-700 border-rose-200', text: 'text-rose-700', dot: 'bg-rose-500' };
+      return { label: 'Cancelada', bg: 'bg-rose-50 text-rose-800 border-rose-300 font-bold', text: 'text-rose-800', dot: 'bg-rose-500' };
     default:
-      return { label: status, bg: 'bg-gray-50 text-gray-700 border-gray-200', text: 'text-gray-700', dot: 'bg-gray-500' };
+      return { label: status, bg: 'bg-gray-50 text-gray-700 border-gray-200 font-bold', text: 'text-gray-700', dot: 'bg-gray-500' };
   }
 }
 

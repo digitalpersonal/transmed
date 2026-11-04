@@ -18,8 +18,8 @@
   }
 
   @page {
-    margin: 1cm;
-    size: portrait;
+    size: A4 portrait;
+    margin: 10mm;
   }
 
   .print\:hidden {

@@ -212,8 +212,8 @@ export const TripsView: React.FC<TripsViewProps> = ({
                               {resolvedHosp}
                             </span>
                           )}
-                          <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusBadge.bg}`}>
-                            {getStatusIcon(trip.status)}
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${statusBadge.bg}`}>
+                            <span className={`w-2.5 h-2.5 rounded-full inline-block shrink-0 ${statusBadge.dot}`}></span>
                             {statusBadge.label}
                           </span>
                           <span className="text-xs font-mono font-bold text-slate-400">

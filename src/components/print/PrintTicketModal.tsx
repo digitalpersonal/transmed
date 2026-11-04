@@ -205,24 +205,43 @@ export const PrintTicketModal: React.FC<PrintTicketModalProps> = ({
           </div>
 
           {/* Instruções Obrigatórias */}
-          <div className="border border-amber-300 bg-amber-50/70 rounded-lg p-3.5 mb-5 text-xs text-amber-950">
-            <div className="flex items-center gap-1.5 font-bold mb-1.5 text-amber-900">
-              <AlertCircle className="w-4 h-4 text-amber-700" />
+          <div className="border border-amber-300 bg-amber-50/70 rounded-lg p-4 mb-6 text-sm text-amber-950">
+            <div className="flex items-center gap-2 font-bold mb-2 text-amber-900">
+              <AlertCircle className="w-5 h-5 text-amber-700 shrink-0" />
               <span>INSTRUÇÕES E ORIENTAÇÕES IMPORTANTES AO PACIENTE</span>
             </div>
-            <ul className="list-disc list-inside space-y-1 text-[11px] text-amber-900">
+            <ul className="list-disc list-inside space-y-1.5 text-xs sm:text-sm text-amber-900">
               {config.instructionsPatient.map((inst, i) => (
                 <li key={i}>{inst}</li>
               ))}
             </ul>
           </div>
 
-          {/* Rodapé e Canhoto de Confirmação */}
-          <div className="border-t-2 border-dashed border-slate-400 pt-4 mt-6">
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
-              <span>Emitido em: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</span>
+          {/* Rodapé e Canhoto de Confirmação com Assinatura, CPF e Data de Emissão */}
+          <div className="border-t-2 border-dashed border-slate-400 pt-6 mt-6 space-y-5">
+            <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <div>
+                <span className="font-bold text-slate-700 block text-xs uppercase">CPF do Paciente:</span>
+                <span className="font-mono font-black text-slate-900 text-base">{passenger.patientCpf}</span>
+              </div>
+              <div className="text-right">
+                <span className="font-bold text-slate-700 block text-xs uppercase">Data e Hora da Emissão:</span>
+                <span className="font-bold text-slate-900 text-sm">{new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</span>
+              </div>
+            </div>
+
+            {/* Campo de Assinatura do Paciente no Rodapé */}
+            <div className="pt-4 pb-2">
+              <div className="w-96 max-w-full mx-auto text-center space-y-1">
+                <div className="border-b-2 border-slate-900 h-14"></div>
+                <p className="font-bold text-slate-900 text-sm">Assinatura do(a) Paciente ou Responsável</p>
+                <p className="text-xs text-slate-600 font-mono">CPF: {passenger.patientCpf}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-200">
               <span>Código de Autenticação: <strong className="font-mono text-slate-700">{passenger.bookingCode}-SUS-TFD</strong></span>
-              <span className="font-bold text-slate-700">{config.tfdCoordinator}</span>
+              <span className="font-bold text-slate-700">{config.tfdCoordinator || 'Coordenação TFD'}</span>
             </div>
           </div>
         </div>

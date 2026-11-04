@@ -9,7 +9,8 @@ import {
   getStoredTrips, saveTrips, 
   getStoredConfig, saveConfig,
   getStoredDestinationCities, saveDestinationCities,
-  markTripAsDeleted, getDeletedTripIds
+  markTripAsDeleted, getDeletedTripIds,
+  getStoredSystemUsers, saveSystemUsers
 } from '../utils/storage';
 
 export async function seedAllFirestore() {
@@ -330,17 +331,21 @@ export async function updateDestinationCitiesFirestore(cities: DestinationCity[]
 
 export function subscribeToUsers(callback: (users: SystemUser[]) => void) {
   const fetchUsers = async () => {
-    const { data, error } = await supabase.from('users').select('*').limit(10000);
-    if (error) {
-      callback([{
-        id: 'admin-digitalpersonal',
-        email: 'digitalpersonal@gmail.com',
-        name: 'Administrador TFD',
-        role: 'admin',
-        createdAt: new Date().toISOString(),
-      }]);
-    } else {
-      callback(data || []);
+    try {
+      const { data, error } = await supabase.from('users').select('*').limit(10000);
+      if (error || !data || data.length === 0) {
+        callback(getStoredSystemUsers());
+      } else {
+        const stored = getStoredSystemUsers();
+        const userMap = new Map<string, SystemUser>();
+        stored.forEach((u) => userMap.set(u.email.toLowerCase(), u));
+        data.forEach((u: SystemUser) => userMap.set(u.email.toLowerCase(), { ...userMap.get(u.email.toLowerCase()), ...u }));
+        const merged = Array.from(userMap.values());
+        saveSystemUsers(merged);
+        callback(merged);
+      }
+    } catch {
+      callback(getStoredSystemUsers());
     }
   };
 
@@ -359,13 +364,31 @@ export function subscribeToUsers(callback: (users: SystemUser[]) => void) {
 }
 
 export async function upsertUserFirestore(user: SystemUser) {
-  const { error } = await supabase.from('users').upsert(user);
-  if (error) throw error;
+  const current = getStoredSystemUsers();
+  const exists = current.some((u) => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase());
+  const updated = exists 
+    ? current.map((u) => (u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase()) ? { ...u, ...user } : u)
+    : [user, ...current];
+  saveSystemUsers(updated);
+
+  try {
+    const { error } = await supabase.from('users').upsert(user);
+    if (error) console.warn('Supabase upsert user error (stored locally):', error);
+  } catch (e) {
+    console.warn('Supabase upsert user exception (stored locally):', e);
+  }
 }
 
 export async function deleteUserFirestore(userId: string) {
-  const { error } = await supabase.from('users').delete().eq('id', userId);
-  if (error) throw error;
+  const current = getStoredSystemUsers().filter((u) => u.id !== userId);
+  saveSystemUsers(current);
+
+  try {
+    const { error } = await supabase.from('users').delete().eq('id', userId);
+    if (error) console.warn('Supabase delete user error (deleted locally):', error);
+  } catch (e) {
+    console.warn('Supabase delete user exception (deleted locally):', e);
+  }
 }
 
 export async function performBatchWrite(

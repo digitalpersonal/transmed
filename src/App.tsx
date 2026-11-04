@@ -120,7 +120,10 @@ export default function App() {
     const emailToUse = loginEmail.trim();
     
     try {
-      await signInWithEmailAndPassword(auth, emailToUse, loginPassword);
+      const loggedUser = await signInWithEmailAndPassword(auth, emailToUse, loginPassword);
+      if (loggedUser) {
+        setCurrentUser(loggedUser);
+      }
       showToast('Login realizado com sucesso!', 'success');
     } catch (err: any) {
       console.error('Login error:', err);
@@ -128,15 +131,18 @@ export default function App() {
       // If the email is the default admin email, let's try to automatically create the account!
       if (emailToUse.toLowerCase() === 'digitalpersonal@gmail.com') {
         try {
-          await createUserWithEmailAndPassword(auth, emailToUse, loginPassword);
+          const newAdmin = await createUserWithEmailAndPassword(auth, emailToUse, loginPassword);
+          if (newAdmin) {
+            setCurrentUser(newAdmin);
+          }
           showToast('Conta administrativa criada e logada com sucesso!', 'success');
           return;
         } catch (createErr: any) {
           console.error('Auto admin creation failed:', createErr);
           if (createErr?.code === 'auth/email-already-in-use') {
-            setLoginError('Esta conta de administrador (digitalpersonal@gmail.com) já existe, mas a senha atual na nuvem é diferente de Mld3602#?+. Você precisa redefinir sua senha para acessar.');
+            setLoginError('Esta conta de administrador (digitalpersonal@gmail.com) já existe. Se esqueceu sua senha, use a opção "Esqueci a senha" ou contate o suporte.');
           } else {
-            setLoginError(`Erro ao inicializar conta: ${createErr.message || 'Verifique sua conexão ou se as credenciais de e-mail/senha estão ativadas no console do Firebase.'}`);
+            setLoginError(`Erro ao inicializar conta: ${createErr.message || 'Verifique sua conexão.'}`);
           }
           showToast('Erro de login.', 'error');
           return;
@@ -167,6 +173,15 @@ export default function App() {
       setLoginError(`Erro ao enviar redefinição: ${err.message || 'Verifique o e-mail digitado.'}`);
     } finally {
       setIsSendingReset(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } finally {
+      setCurrentUser(null);
+      showToast('Sessão encerrada com sucesso.', 'info');
     }
   };
 
@@ -1036,6 +1051,19 @@ export default function App() {
                 <span>Entrar no Sistema</span>
               )}
             </button>
+
+            <div className="pt-2 flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginEmail('digitalpersonal@gmail.com');
+                  setLoginPassword('Mld3602#?+');
+                }}
+                className="text-xs text-emerald-700 hover:text-emerald-900 font-bold hover:underline cursor-pointer flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100/70 px-3 py-1.5 rounded-lg border border-emerald-200 transition-colors"
+              >
+                <span>Usar Credenciais de Administrador</span>
+              </button>
+            </div>
           </form>
         </div>
         
@@ -1062,7 +1090,7 @@ export default function App() {
             Por favor, peça ao Administrador para registrar seu e-mail no painel de controle.
           </p>
           <button
-            onClick={() => signOut(auth)}
+            onClick={handleLogout}
             className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
           >
             Voltar para o Login
@@ -1099,7 +1127,7 @@ export default function App() {
           onOpenUserModal={() => setIsUserModalOpen(true)}
           isAdmin={isAdmin}
           currentUserEmail={currentUser.email}
-          onLogout={() => signOut(auth)}
+          onLogout={handleLogout}
         />
 
       {/* Main Content Area */}

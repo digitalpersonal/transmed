@@ -1,4 +1,4 @@
-import { DestinationHospital, DestinationCity, MunicipalConfig, Patient, Trip, Vehicle, Driver, ensurePassengerArray } from '../types';
+import { DestinationHospital, DestinationCity, MunicipalConfig, Patient, Trip, Vehicle, Driver, SystemUser, ensurePassengerArray } from '../types';
 import { INITIAL_DESTINATIONS, INITIAL_DESTINATION_CITIES, INITIAL_MUNICIPAL_CONFIG, INITIAL_PATIENTS, INITIAL_TRIPS, INITIAL_VEHICLES, INITIAL_DRIVERS } from '../data/initialData';
 
 const STORAGE_KEYS = {
@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   CONFIG: 'tfd_config_v1',
   DRIVERS: 'tfd_drivers_v2',
   DELETED_TRIPS: 'tfd_deleted_trips_v1',
+  USERS: 'tfd_users_v2',
 };
 
 export function getDeletedTripIds(): string[] {
@@ -289,6 +290,45 @@ export function saveDrivers(drivers: Driver[]): void {
   }
 }
 
+export const INITIAL_SYSTEM_USERS: SystemUser[] = [
+  {
+    id: 'admin-digitalpersonal',
+    email: 'digitalpersonal@gmail.com',
+    name: 'Administrador TFD',
+    role: 'admin',
+    createdAt: new Date().toISOString(),
+  }
+];
+
+export function getStoredSystemUsers(): SystemUser[] {
+  try {
+    const data = safeGetItem(STORAGE_KEYS.USERS);
+    if (!data) {
+      safeSetItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_SYSTEM_USERS));
+      return INITIAL_SYSTEM_USERS;
+    }
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return INITIAL_SYSTEM_USERS;
+    if (!parsed.some((u: any) => u.email?.toLowerCase() === 'digitalpersonal@gmail.com')) {
+      const merged = [...INITIAL_SYSTEM_USERS, ...parsed];
+      safeSetItem(STORAGE_KEYS.USERS, JSON.stringify(merged));
+      return merged;
+    }
+    return parsed;
+  } catch (e) {
+    console.error('Error loading users from storage', e);
+    return INITIAL_SYSTEM_USERS;
+  }
+}
+
+export function saveSystemUsers(users: SystemUser[]): void {
+  try {
+    safeSetItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  } catch (e) {
+    console.error('Error saving system users', e);
+  }
+}
+
 export function resetAllData(): void {
   try {
     safeSetItem(STORAGE_KEYS.PATIENTS, JSON.stringify(INITIAL_PATIENTS));
@@ -297,6 +337,7 @@ export function resetAllData(): void {
     safeSetItem(STORAGE_KEYS.DESTINATIONS, JSON.stringify(INITIAL_DESTINATIONS));
     safeSetItem(STORAGE_KEYS.CONFIG, JSON.stringify(INITIAL_MUNICIPAL_CONFIG));
     safeSetItem(STORAGE_KEYS.DRIVERS, JSON.stringify(INITIAL_DRIVERS));
+    safeSetItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_SYSTEM_USERS));
   } catch (e) {
     console.error('Error resetting data', e);
   }
@@ -313,6 +354,7 @@ export function exportAllDataJSON(): string {
     destinationCities: getStoredDestinationCities(),
     config: getStoredConfig(),
     drivers: getStoredDrivers(),
+    users: getStoredSystemUsers(),
   };
   return JSON.stringify(fullBackup, null, 2);
 }
@@ -327,6 +369,7 @@ export function importAllDataJSON(jsonString: string): boolean {
     if (Array.isArray(data.destinationCities)) saveDestinationCities(data.destinationCities);
     if (data.config && typeof data.config === 'object') saveConfig(data.config);
     if (Array.isArray(data.drivers)) saveDrivers(data.drivers);
+    if (Array.isArray(data.users)) saveSystemUsers(data.users);
     return true;
   } catch (e) {
     console.error('Import failed', e);
