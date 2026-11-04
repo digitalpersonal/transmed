@@ -62,7 +62,7 @@ export const PrintClosureModal: React.FC<PrintClosureModalProps> = ({
         </div>
 
         {/* Printable Content */}
-        <div className="p-8 text-slate-800 text-xs font-sans bg-white overflow-y-auto flex-1 print:overflow-visible print:p-2 print:m-0 print:text-[11px]">
+        <div className="p-8 text-slate-800 text-xs font-sans bg-white overflow-y-auto flex-1 print:overflow-visible print:p-8 print:m-0 print:text-[11px]">
           {/* Header Timbrado Oficial */}
           <div className="border-b-2 border-slate-900 pb-4 mb-4 print:pb-2 print:mb-2 flex items-start justify-between">
             <div>

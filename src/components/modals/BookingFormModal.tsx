@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Calendar, User, ShieldCheck, MapPin, Clock, AlertTriangle, Check, Ticket, Search } from 'lucide-react';
 import { DestinationHospital, Patient, Trip, TripPassenger, Vehicle, ensurePassengerArray } from '../../types';
-import { formatCPF, formatDateBR, formatPhone, formatPlate, formatSUS, generateBookingCode } from '../../utils/formatters';
+import { formatCPF, formatDateBR, formatPhone, formatPlate, formatSUS, generateBookingCode, normalizeHospitalName } from '../../utils/formatters';
 
 interface BookingFormModalProps {
   preselectedTripId?: string;
@@ -125,14 +125,14 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
 
   // Available destinations for selected trip (either in destinationIds, matching by city, or matching by name, or fallback if small list)
   const tripDestinations = useMemo(() => {
-    return destinations.filter((d) => {
+    const filtered = destinations.filter((d) => {
       if (!selectedTrip) return true;
       
       // Explicitly included in the trip
       if (selectedTrip.destinationIds?.includes(d.id)) return true;
       
       // Matching trip hospital name
-      if (selectedTrip.destinationHospital && d.name.toLowerCase().trim() === selectedTrip.destinationHospital.toLowerCase().trim()) return true;
+      if (selectedTrip.destinationHospital && normalizeHospitalName(d.name) === normalizeHospitalName(selectedTrip.destinationHospital)) return true;
       
       // Matching trip city
       const cleanTripCity = selectedTrip.destinationCity?.split('-')[0].trim().toLowerCase() || '';
@@ -141,6 +141,16 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
       // Default fallback to keep list reasonable
       return destinations.length <= 15;
     });
+
+    // Final deduplication layer to ensure UI is clean
+    const uniqueMap = new Map<string, DestinationHospital>();
+    filtered.forEach(d => {
+      const key = `${normalizeHospitalName(d.name)}_${d.city.toLowerCase().trim()}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, d);
+      }
+    });
+    return Array.from(uniqueMap.values());
   }, [destinations, selectedTrip]);
 
   // When trip is selected, pick default destination smartly

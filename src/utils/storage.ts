@@ -1,5 +1,6 @@
 import { DestinationHospital, DestinationCity, MunicipalConfig, Patient, Trip, Vehicle, Driver, SystemUser, ensurePassengerArray } from '../types';
 import { INITIAL_DESTINATIONS, INITIAL_DESTINATION_CITIES, INITIAL_MUNICIPAL_CONFIG, INITIAL_PATIENTS, INITIAL_TRIPS, INITIAL_VEHICLES, INITIAL_DRIVERS } from '../data/initialData';
+import { normalizeHospitalName } from './formatters';
 
 const STORAGE_KEYS = {
   PATIENTS: 'tfd_patients_v1',
@@ -175,11 +176,11 @@ export function getStoredDestinations(): DestinationHospital[] {
       destinationsList = [...INITIAL_DESTINATIONS];
     }
 
-    // Strictly deduplicate destinations list by name and city
+    // Strictly deduplicate destinations list by name and city using robust normalization
     const uniqueMap = new Map<string, DestinationHospital>();
     destinationsList.forEach(d => {
       if (!d.name) return;
-      const key = `${d.name.toLowerCase().trim()}_${(d.city || '').toLowerCase().trim()}`;
+      const key = `${normalizeHospitalName(d.name)}_${(d.city || '').toLowerCase().trim()}`;
       if (!uniqueMap.has(key)) {
         uniqueMap.set(key, d);
       }
@@ -188,7 +189,7 @@ export function getStoredDestinations(): DestinationHospital[] {
 
     // Garante que todos os hospitais das cidades cadastradas estejam presentes em destinationsList
     const existingKeys = new Set(
-      destinationsList.map((d) => `${d.name.toLowerCase().trim()}_${(d.city || '').toLowerCase().trim()}`)
+      destinationsList.map((d) => `${normalizeHospitalName(d.name)}_${(d.city || '').toLowerCase().trim()}`)
     );
 
     let addedCount = 0;
@@ -196,7 +197,7 @@ export function getStoredDestinations(): DestinationHospital[] {
       (c.mainHospitals || []).forEach((hName, idx) => {
         const cleanHName = hName.trim();
         if (!cleanHName) return;
-        const key = `${cleanHName.toLowerCase()}_${c.cityName.toLowerCase().trim()}`;
+        const key = `${normalizeHospitalName(cleanHName)}_${c.cityName.toLowerCase().trim()}`;
         if (!existingKeys.has(key)) {
           existingKeys.add(key);
           destinationsList.push({
@@ -229,7 +230,7 @@ export function saveDestinations(destinations: DestinationHospital[]): void {
     const uniqueMap = new Map<string, DestinationHospital>();
     destinations.forEach(d => {
       if (!d.name) return;
-      const key = `${d.name.toLowerCase().trim()}_${(d.city || '').toLowerCase().trim()}`;
+      const key = `${normalizeHospitalName(d.name)}_${(d.city || '').toLowerCase().trim()}`;
       if (!uniqueMap.has(key)) {
         uniqueMap.set(key, d);
       }

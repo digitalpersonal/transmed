@@ -160,3 +160,22 @@ export function generateTripCode(dateStr: string, seq: number): string {
   const cleanDate = (dateStr || '').replace(/-/g, '').slice(2);
   return `V-${cleanDate}-${String(seq).padStart(2, '0')}`;
 }
+
+export function normalizeHospitalName(name: string): string {
+  if (!name) return '';
+  // Normalize Portuguese accents and characters
+  let normalized = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  // Remove common prefixes used in imported lists (R:, AV., HOSPITAL, etc.)
+  // We use a more flexible regex to catch various patterns
+  normalized = normalized.replace(/^(R[:\s]|AV[\.\s]|RUA\s|AVENIDA\s|HOSPITAL\s|CLINICA\s|HOSP\s|UNIDADE\s|POSTO\s)/g, '');
+  
+  // Replace punctuation and special characters with space to avoid variations like "Santa Casa-SP" vs "Santa Casa SP"
+  normalized = normalized.replace(/[^A-Z0-9]/g, ' ');
+  
+  // Collapse multiple spaces and trim
+  return normalized.replace(/\s+/g, ' ').trim();
+}

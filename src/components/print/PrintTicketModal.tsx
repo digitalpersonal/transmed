@@ -50,7 +50,7 @@ export const PrintTicketModal: React.FC<PrintTicketModalProps> = ({
         </div>
 
         {/* Printable Ticket Area */}
-        <div className="p-8 text-slate-800 text-sm font-sans bg-white overflow-y-auto flex-1 print:overflow-visible print:p-0 print:m-0 print:text-[11px]">
+        <div className="p-8 text-slate-800 text-sm font-sans bg-white overflow-y-auto flex-1 print:overflow-visible print:p-8 print:m-0 print:text-[11px]">
           {/* Header */}
           <div className="border-b-2 border-slate-800 pb-4 mb-5 print:pb-2 print:mb-2.5 flex items-start justify-between">
             <div className="flex items-start gap-4">

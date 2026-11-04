@@ -40,6 +40,13 @@ import {
 } from './utils/storage';
 import { ExcelCapturedRow } from './utils/excel';
 import { 
+  formatCPF, 
+  formatSUS, 
+  formatPhone, 
+  formatDateBR,
+  normalizeHospitalName 
+} from './utils/formatters';
+import { 
   subscribeToPatients, upsertPatientFirestore, deletePatientFirestore,
   subscribeToVehicles, upsertVehicleFirestore, deleteVehicleFirestore,
   subscribeToDrivers, upsertDriverFirestore, deleteDriverFirestore,
@@ -468,8 +475,8 @@ export default function App() {
       getOrAddCity(cleanCity);
 
       const found = localDestinations.find(d => 
-        d.name.toLowerCase() === cleanDest.toLowerCase() && 
-        d.city.toLowerCase() === cleanCity.toLowerCase()
+        normalizeHospitalName(d.name) === normalizeHospitalName(cleanDest) && 
+        d.city.toLowerCase().trim() === cleanCity.toLowerCase().trim()
       );
 
       if (!found) {
