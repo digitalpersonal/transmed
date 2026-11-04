@@ -207,7 +207,7 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                 <input
                   type="number"
                   min={1}
-                  max={60}
+                  max={500}
                   value={formData.maxCapacity || 16}
                   onChange={(e) => setFormData({ ...formData, maxCapacity: Number(e.target.value) })}
                   className={`w-full px-3 py-2 border rounded-lg bg-white text-slate-900 text-base font-black focus:outline-sky-600 border-sky-300`}

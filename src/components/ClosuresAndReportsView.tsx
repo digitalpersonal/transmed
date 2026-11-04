@@ -82,7 +82,7 @@ export const ClosuresAndReportsView: React.FC<ClosuresAndReportsViewProps> = ({
     return (t.destinationCity || '').toLowerCase().includes((selectedCity || '').toLowerCase());
   }), [completedTrips, selectedCity]);
 
-  const displayedTrips = useMemo(() => filteredTrips.slice(0, 50), [filteredTrips]);
+  const displayedTrips = useMemo(() => filteredTrips.slice(0, 500), [filteredTrips]);
 
   return (
     <div className="space-y-6">
@@ -279,11 +279,9 @@ export const ClosuresAndReportsView: React.FC<ClosuresAndReportsViewProps> = ({
               )}
             </tbody>
           </table>
-          {filteredTrips.length > 50 && (
             <div className="bg-slate-50 border-t border-slate-200 p-3 text-center text-xs text-slate-500 font-medium">
-              Exibindo os primeiros 50 registros de {filteredTrips.length}. Utilize os filtros para relatórios mais específicos.
+              Exibindo os primeiros 500 registros de {filteredTrips.length}. Utilize os filtros para relatórios mais específicos.
             </div>
-          )}
         </div>
       </div>
 

@@ -61,7 +61,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
     return matchSearch && matchStatus;
   }), [allBookings, searchTerm, statusFilter]);
 
-  const displayedBookings = useMemo(() => filteredBookings.slice(0, 50), [filteredBookings]);
+  const displayedBookings = useMemo(() => filteredBookings.slice(0, 500), [filteredBookings]);
 
   return (
     <div className="space-y-6">
@@ -258,11 +258,9 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
             </tbody>
           </table>
         </div>
-        {filteredBookings.length > 50 && (
           <div className="bg-slate-50 border-t border-slate-200 p-3 text-center text-xs text-slate-500 font-medium">
-            Exibindo os primeiros 50 resultados de {filteredBookings.length} encontrados. Utilize a busca para encontrar agendamentos específicos.
+            Exibindo os primeiros 500 resultados de {filteredBookings.length} encontrados. Utilize a busca para encontrar agendamentos específicos.
           </div>
-        )}
       </div>
     </div>
   );

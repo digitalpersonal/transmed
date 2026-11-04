@@ -233,12 +233,14 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
     e.preventDefault();
     if (!validate()) return;
 
-    // Strict City Validation: Must be in the official list
+    // Strict City Validation: Removed to allow unlimited registration as requested
+    /*
     const isOfficialCity = allAvailableCities.some(c => c.label === formData.destinationCity);
     if (!isOfficialCity) {
       setErrors(prev => ({ ...prev, destinationCity: 'Por favor, selecione uma cidade da lista oficial (45 cidades cadastradas).' }));
       return;
     }
+    */
 
     const primaryHospId = formData.destinationIds?.[0];
     const primaryHosp = primaryHospId ? allAvailableHospitals.find(h => h.id === primaryHospId) : null;

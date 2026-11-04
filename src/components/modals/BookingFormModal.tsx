@@ -139,7 +139,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
       if (cleanTripCity && d.city.toLowerCase().trim() === cleanTripCity) return true;
       
       // Default fallback to keep list reasonable
-      return destinations.length <= 25; // Increased fallback to allow more options if list is manageable
+      return destinations.length <= 200; // Increased fallback to allow more options if list is manageable
     });
 
     // Final deduplication layer to ensure UI is clean
@@ -433,7 +433,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                   {filteredPatients.length === 0 ? (
                     <div className="p-3 text-slate-500 text-center">Nenhum paciente encontrado</div>
                   ) : (
-                    filteredPatients.slice(0, 10).map((p) => (
+                    filteredPatients.slice(0, 50).map((p) => (
                       <button
                         key={p.id}
                         type="button"
@@ -664,10 +664,15 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
               <button
                 type="submit"
                 id="btn-confirm-booking"
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-xs shadow-md transition-colors cursor-pointer"
+                disabled={isOverbooking}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-xs shadow-md transition-colors cursor-pointer ${
+                  isOverbooking 
+                    ? 'bg-slate-400 cursor-not-allowed text-white' 
+                    : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                }`}
               >
                 <Check className="w-4 h-4" />
-                Confirmar Agendamento
+                {isOverbooking ? 'Veículo Lotado' : 'Confirmar Agendamento'}
               </button>
             </div>
           </div>

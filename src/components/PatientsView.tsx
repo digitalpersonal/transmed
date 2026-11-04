@@ -44,7 +44,7 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
   const [conditionFilter, setConditionFilter] = useState<string>('all');
   const [companionFilter, setCompanionFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 200;
 
   // Helper to normalize Portuguese diacritics / accents
   const normalizeString = (str: string): string => {

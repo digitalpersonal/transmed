@@ -393,7 +393,7 @@ export default function App() {
           model: 'Van Escala TFD',
           brand: 'Municipal',
           plate: 'TFD-0000',
-          maxCapacity: 15,
+          maxCapacity: 100,
           wheelchairCapacity: 0,
           year: 2024,
           type: 'van',
@@ -427,7 +427,7 @@ export default function App() {
           model,
           brand: 'Municipal',
           plate,
-          maxCapacity: 15,
+          maxCapacity: 100,
           wheelchairCapacity: 0,
           year: 2024,
           type: 'van',
@@ -534,13 +534,7 @@ export default function App() {
         c.cityName.toUpperCase().trim().includes(destCity.toUpperCase().trim())
       );
       
-      // If city is not official and not in currently added list, SKIP THIS ROW to keep data integrity
-      if (!officialCity) {
-        console.warn(`Excel Import: Skipping row ${idx + 1} due to invalid destination city: "${destCity}"`);
-        return; 
-      }
-
-      const validatedCityName = officialCity.cityName;
+      const validatedCityName = officialCity ? officialCity.cityName : destCity;
       const validatedHospitalName = destHospital;
 
       // Ensure Destination & City exists (runs for all rows)
@@ -551,9 +545,14 @@ export default function App() {
       const driverName = getOrAddDriver(row.motorista || '');
 
       // Upsert/Merge patient (runs for all rows)
-      let existingPat = localPatients.find(p => p.cpf === parsedPat.cpf);
+      // SEARCH BY CPF FIRST, THEN BY NAME TO PREVENT DUPLICATES
+      let existingPat = localPatients.find(p => 
+        (parsedPat.cpf && p.cpf === parsedPat.cpf) || 
+        (p.name.toLowerCase().trim() === parsedPat.name.toLowerCase().trim())
+      );
+
       if (existingPat) {
-        // Merge & update missing/modified fields
+        // Merge & update missing/modified fields (UPGRADE PATIENT)
         existingPat = {
           ...existingPat,
           susCard: parsedPat.susCard || existingPat.susCard,
@@ -586,9 +585,6 @@ export default function App() {
       }
 
       const tripDate = row.dataViagem || todayStr;
-      
-      // Manter a importação das viagens somente da data da importação para frente
-      if (tripDate < todayStr) return;
       
       // Check if trip already exists for this destination + date + vehicle
       let targetTrip = updatedTrips.find(t => 
@@ -662,6 +658,9 @@ export default function App() {
         }
       }
     });
+
+    // Final sorting of patients alphabetically by name (MANDATORY REQUIREMENT)
+    localPatients.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
     // Save states locally
     setPatients(localPatients);
@@ -1427,6 +1426,9 @@ export default function App() {
               setIsDestinationCityModalOpen(true);
             }}
             onDeleteCity={handleDeleteDestinationCity}
+            onCleanupCities={handleCleanupCities}
+            onCleanupHospitals={handleCleanupDestinations}
+            isAdmin={isAdmin}
           />
         )}
 

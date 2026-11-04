@@ -8,6 +8,9 @@ interface DestinationCitiesViewProps {
   onOpenNewCityModal: () => void;
   onEditCity: (city: DestinationCity) => void;
   onDeleteCity: (cityId: string) => void;
+  onCleanupCities?: () => void;
+  onCleanupHospitals?: () => void;
+  isAdmin?: boolean;
 }
 
 export const DestinationCitiesView: React.FC<DestinationCitiesViewProps> = ({
@@ -16,6 +19,9 @@ export const DestinationCitiesView: React.FC<DestinationCitiesViewProps> = ({
   onOpenNewCityModal,
   onEditCity,
   onDeleteCity,
+  onCleanupCities,
+  onCleanupHospitals,
+  isAdmin,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'cities' | 'hospitals' | 'specialties'>('cities');
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,7 +81,33 @@ export const DestinationCitiesView: React.FC<DestinationCitiesViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => {
+                  if (confirm('Deseja remover todas as cidades de destino não oficiais e restaurar a lista padrão de 45 cidades?')) {
+                    onCleanupCities?.();
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-bold border border-amber-200 transition-colors cursor-pointer"
+              >
+                <Compass className="w-4 h-4" />
+                <span>Restaurar Cidades Oficiais</span>
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm('Deseja remover hospitais e clínicas duplicados no sistema?')) {
+                    onCleanupHospitals?.();
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-lg text-xs font-bold border border-rose-200 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Limpar Hospitais Duplicados</span>
+              </button>
+            </>
+          )}
           <button
             onClick={onOpenNewCityModal}
             className="flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"

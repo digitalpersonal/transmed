@@ -43,13 +43,21 @@ export async function clearTripsAndPatientsFirestore(tripsOnly = false) {
 
     // 2. Clear Supabase with a more robust approach
     if (tripsOnly) {
-      const { error } = await supabase.from('trips').delete().neq('id', 'dummy-never-matches-this-id');
-      if (error) console.error('Error clearing trips from Supabase:', error);
+      // Clear trips one by one if bulk delete fails or as a fallback
+      const { data: allTrips } = await supabase.from('trips').select('id');
+      if (allTrips && allTrips.length > 0) {
+        await supabase.from('trips').delete().in('id', allTrips.map(t => t.id));
+      }
     } else {
-      const { error: errTrips } = await supabase.from('trips').delete().neq('id', 'dummy-never-matches-this-id');
-      const { error: errPats } = await supabase.from('patients').delete().neq('id', 'dummy-never-matches-this-id');
-      if (errTrips) console.error('Error clearing trips from Supabase:', errTrips);
-      if (errPats) console.error('Error clearing patients from Supabase:', errPats);
+      const { data: allTrips } = await supabase.from('trips').select('id');
+      const { data: allPats } = await supabase.from('patients').select('id');
+      
+      if (allTrips && allTrips.length > 0) {
+        await supabase.from('trips').delete().in('id', allTrips.map(t => t.id));
+      }
+      if (allPats && allPats.length > 0) {
+        await supabase.from('patients').delete().in('id', allPats.map(pt => pt.id));
+      }
     }
 
     console.log('Database cleared successfully');
@@ -57,7 +65,7 @@ export async function clearTripsAndPatientsFirestore(tripsOnly = false) {
     // 3. Force a complete application reload to reset all subscriptions and state
     setTimeout(() => {
       window.location.reload();
-    }, 1500);
+    }, 500);
   } catch (error: any) {
     console.error('Error clearing data in Supabase:', error);
     throw error;
