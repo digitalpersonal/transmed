@@ -103,12 +103,12 @@ export default function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isSendingReset, setIsSendingReset] = useState(false);
 
-  // Core Data State (initialized instantly from local storage for maximum performance)
-  const [trips, setTrips] = useState<Trip[]>(getTrips());
-  const [patients, setPatients] = useState<Patient[]>(getPatients());
-  const [vehicles, setVehicles] = useState<Vehicle[]>(getVehicles());
-  const [drivers, setDrivers] = useState<Driver[]>(getDrivers());
-  const [destinations, setDestinations] = useState<DestinationHospital[]>(getDestinations());
+  // Core Data State (initialized as empty, will be populated by Supabase sync)
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [destinations, setDestinations] = useState<DestinationHospital[]>([]);
   const [config, setConfig] = useState<MunicipalConfig>(getMunicipalConfig());
 
   // Toast Notification
@@ -209,21 +209,33 @@ export default function App() {
 
   // Load from storage and Firestore on mount
   useEffect(() => {
-    const unsubPatients = subscribeToPatients(setPatients);
-    const unsubVehicles = subscribeToVehicles((vList) => {
-      setVehicles(vList);
-      saveVehicles(vList);
+    const unsubPatients = subscribeToPatients((p) => {
+      console.log('[App] Received patients:', p.length);
+      setPatients(p);
     });
-    const unsubDrivers = subscribeToDrivers((dList) => {
-      setDrivers(dList);
-      saveDrivers(dList);
+    const unsubVehicles = subscribeToVehicles((v) => {
+      console.log('[App] Received vehicles:', v.length);
+      setVehicles(v);
     });
-    const unsubDestinations = subscribeToDestinations(setDestinations);
-    const unsubTrips = subscribeToTrips(setTrips);
-    const unsubConfig = subscribeToConfig(setConfig);
+    const unsubDrivers = subscribeToDrivers((d) => {
+      console.log('[App] Received drivers:', d.length);
+      setDrivers(d);
+    });
+    const unsubDestinations = subscribeToDestinations((d) => {
+      console.log('[App] Received destinations:', d.length);
+      setDestinations(d);
+    });
+    const unsubTrips = subscribeToTrips((t) => {
+      console.log('[App] Received trips:', t.length);
+      setTrips(t);
+    });
+    const unsubConfig = subscribeToConfig((c) => {
+      console.log('[App] Received config');
+      setConfig(c);
+    });
     const unsubCities = subscribeToDestinationCities((citiesList) => {
+      console.log('[App] Received cities:', citiesList.length);
       setDestinationCities(citiesList);
-      saveDestinationCities(citiesList);
     });
 
     return () => {
@@ -339,26 +351,21 @@ export default function App() {
   // Patient CRUD
   // ==========================================
   const handleSavePatient = (patientToSave: Patient) => {
-    let updated: Patient[];
     const exists = patients.some((p) => p.id === patientToSave.id);
     if (exists) {
-      updated = patients.map((p) => (p.id === patientToSave.id ? patientToSave : p));
+      setPatients(patients.map((p) => (p.id === patientToSave.id ? patientToSave : p)));
       showToast(`Paciente ${patientToSave.name} atualizado com sucesso!`);
     } else {
-      updated = [patientToSave, ...patients];
+      setPatients([patientToSave, ...patients]);
       showToast(`Paciente ${patientToSave.name} cadastrado com sucesso!`);
     }
-    setPatients(updated);
-    savePatients(updated);
     upsertPatientFirestore(patientToSave).catch(() => {});
     setIsPatientModalOpen(false);
     setEditingPatient(null);
   };
 
   const handleDeletePatient = (patientId: string) => {
-    const updated = patients.filter((p) => p.id !== patientId);
-    setPatients(updated);
-    savePatients(updated);
+    setPatients(patients.filter((p) => p.id !== patientId));
     deletePatientFirestore(patientId).catch(() => {});
     showToast('Paciente removido do cadastro.', 'info');
   };
@@ -737,26 +744,21 @@ export default function App() {
   // Vehicle CRUD
   // ==========================================
   const handleSaveVehicle = (vehicleToSave: Vehicle) => {
-    let updated: Vehicle[];
     const exists = vehicles.some((v) => v.id === vehicleToSave.id);
     if (exists) {
-      updated = vehicles.map((v) => (v.id === vehicleToSave.id ? vehicleToSave : v));
+      setVehicles(vehicles.map((v) => (v.id === vehicleToSave.id ? vehicleToSave : v)));
       showToast(`Veículo ${vehicleToSave.model} atualizado com sucesso!`);
     } else {
-      updated = [vehicleToSave, ...vehicles];
+      setVehicles([vehicleToSave, ...vehicles]);
       showToast(`Veículo ${vehicleToSave.model} cadastrado na frota!`);
     }
-    setVehicles(updated);
-    saveVehicles(updated);
     upsertVehicleFirestore(vehicleToSave).catch(() => {});
     setIsVehicleModalOpen(false);
     setEditingVehicle(null);
   };
 
   const handleDeleteVehicle = (vehicleId: string) => {
-    const updated = vehicles.filter((v) => v.id !== vehicleId);
-    setVehicles(updated);
-    saveVehicles(updated);
+    setVehicles(vehicles.filter((v) => v.id !== vehicleId));
     deleteVehicleFirestore(vehicleId).catch(() => {});
     showToast('Veículo removido da frota.', 'info');
   };
@@ -765,11 +767,10 @@ export default function App() {
   // Driver CRUD
   // ==========================================
   const handleSaveDriver = (driverToSave: Driver | Omit<Driver, 'id' | 'createdAt'>) => {
-    let updated: Driver[];
     let targetDriver: Driver;
     if ('id' in driverToSave) {
       targetDriver = driverToSave as Driver;
-      updated = drivers.map((d) => (d.id === targetDriver.id ? targetDriver : d));
+      setDrivers(drivers.map((d) => (d.id === targetDriver.id ? targetDriver : d)));
       showToast(`Motorista ${targetDriver.name} atualizado com sucesso!`);
     } else {
       targetDriver = {
@@ -777,20 +778,16 @@ export default function App() {
         id: `drv-${Date.now()}`,
         createdAt: new Date().toISOString(),
       };
-      updated = [targetDriver, ...drivers];
+      setDrivers([targetDriver, ...drivers]);
       showToast(`Motorista ${targetDriver.name} cadastrado com sucesso!`);
     }
-    setDrivers(updated);
-    saveDrivers(updated);
     upsertDriverFirestore(targetDriver).catch(() => {});
     setIsDriverModalOpen(false);
     setEditingDriver(null);
   };
 
   const handleDeleteDriver = (driverId: string) => {
-    const updated = drivers.filter((d) => d.id !== driverId);
-    setDrivers(updated);
-    saveDrivers(updated);
+    setDrivers(drivers.filter((d) => d.id !== driverId));
     deleteDriverFirestore(driverId).catch(() => {});
     showToast('Motorista removido.', 'info');
   };
@@ -799,26 +796,21 @@ export default function App() {
   // Trip CRUD
   // ==========================================
   const handleSaveTrip = (tripToSave: Trip) => {
-    let updated: Trip[];
     const exists = trips.some((t) => t.id === tripToSave.id);
     if (exists) {
-      updated = trips.map((t) => (t.id === tripToSave.id ? tripToSave : t));
+      setTrips(trips.map((t) => (t.id === tripToSave.id ? tripToSave : t)));
       showToast(`Viagem ${tripToSave.code} atualizada com sucesso!`);
     } else {
-      updated = [tripToSave, ...trips];
+      setTrips([tripToSave, ...trips]);
       showToast(`Viagem para ${tripToSave.destinationCity} agendada com sucesso!`);
     }
-    setTrips(updated);
-    saveTrips(updated);
     upsertTripFirestore(tripToSave).catch(() => {});
     setIsTripModalOpen(false);
     setEditingTrip(null);
   };
 
   const handleDeleteTrip = (tripId: string) => {
-    const updated = trips.filter((t) => t.id !== tripId);
-    setTrips(updated);
-    saveTrips(updated);
+    setTrips(trips.filter((t) => t.id !== tripId));
     deleteTripFirestore(tripId).catch(() => {});
     showToast('Viagem excluída com sucesso.', 'info');
   };
@@ -865,9 +857,7 @@ export default function App() {
       passengers: [...ensurePassengerArray(targetTrip.passengers), newPassenger],
     };
 
-    const updatedTrips = trips.map((t) => (t.id === tripId ? updatedTrip : t));
-    setTrips(updatedTrips);
-    saveTrips(updatedTrips);
+    setTrips(trips.map((t) => (t.id === tripId ? updatedTrip : t)));
     upsertTripFirestore(updatedTrip).catch(() => {});
 
     setIsBookingModalOpen(false);
@@ -891,9 +881,7 @@ export default function App() {
       passengers: ensurePassengerArray(targetTrip.passengers).filter((p) => p.id !== passengerId),
     };
 
-    const updatedTrips = trips.map((t) => (t.id === tripId ? updatedTrip : t));
-    setTrips(updatedTrips);
-    saveTrips(updatedTrips);
+    setTrips(trips.map((t) => (t.id === tripId ? updatedTrip : t)));
     upsertTripFirestore(updatedTrip).catch(() => {});
     showToast('Agendamento cancelado. Vagas liberadas no veículo.', 'info');
   };
@@ -950,34 +938,21 @@ export default function App() {
   // ==========================================
   const handleSaveConfig = (newConfig: MunicipalConfig) => {
     setConfig(newConfig);
-    saveMunicipalConfig(newConfig);
     updateConfigFirestore(newConfig).catch(() => {});
     showToast('Configurações da Secretaria de Saúde salvas com sucesso!');
   };
 
   const handleResetData = async () => {
-    resetToInitialData();
     await seedAllFirestore();
-    setTrips(getTrips());
-    setPatients(getPatients());
-    setVehicles(getVehicles());
-    setDestinations(getDestinations());
-    setConfig(getMunicipalConfig());
-    showToast('Todos os dados da planilha e do sistema foram restaurados com sucesso!', 'success');
+    // Re-fetch all data to reset state from Supabase
+    showToast('Todos os dados foram restaurados para o estado inicial com sucesso!', 'success');
   };
 
   const handleClearAllData = async () => {
     try {
-      // 1. Clear local state immediately for UX
       setTrips([]);
       setPatients([]);
-      
-      // 2. Clear local storage completely
-      clearAllPersistentData();
-      
-      // 3. Clear Supabase
       await clearTripsAndPatientsFirestore(false);
-      
       showToast('Sistema resetado! Todas as viagens e pacientes foram apagados com sucesso.', 'success');
     } catch (error: any) {
       console.error('Clear data error:', error);
@@ -988,7 +963,6 @@ export default function App() {
   const handleClearTripsOnly = async () => {
     try {
       setTrips([]);
-      clearTrips();
       await clearTripsAndPatientsFirestore(true);
       showToast('Todas as viagens e agendamentos (BPAs) foram removidos. O cadastro de pacientes foi mantido.', 'success');
     } catch (error: any) {

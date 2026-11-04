@@ -55,7 +55,7 @@ export const TripsView: React.FC<TripsViewProps> = ({
   onRemoveCompanion,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedTripId, setExpandedTripId] = useState<string | null>(null);
   const [tripToDelete, setTripToDelete] = useState<Trip | null>(null);
 

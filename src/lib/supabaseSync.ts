@@ -97,267 +97,127 @@ function safeSetItem(key: string, value: string): void {
 export function subscribeToPatients(callback: (patients: Patient[]) => void) {
   const fetchPatients = async () => {
     const { data, error } = await supabase.from('patients').select('*').limit(10000);
-    const local = getStoredPatients();
-    
     if (error) {
-      console.warn('Supabase patients error, using local storage:', error);
-      callback(local);
+      console.error('Supabase patients error details:', JSON.stringify(error, null, 2));
+      callback([]);
     } else {
-      const remote = data || [];
-      if (remote.length === 0 && local.length > 0) {
-        // Detect sync gap: push local to remote
-        supabase.from('patients').upsert(local).then(({error: syncErr}) => {
-          if (syncErr) console.error('Auto-sync patients error:', syncErr);
-        });
-        callback(local);
-      } else {
-        savePatients(remote);
-        callback(remote);
-      }
+      console.log(`[SupabaseSync] Patients fetch successful. Rows: ${data?.length || 0}`);
+      callback(data || []);
     }
   };
 
   fetchPatients();
-
   const channel = supabase
     .channel('patients-changes-' + Math.random().toString(36).substring(2))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, () => {
       fetchPatients();
     })
     .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}
-
-export async function upsertPatientFirestore(patient: Patient) {
-  const { error } = await supabase.from('patients').upsert(patient);
-  if (error) throw error;
-}
-
-export async function deletePatientFirestore(patientId: string) {
-  const { error } = await supabase.from('patients').delete().eq('id', patientId);
-  if (error) throw error;
+  return () => { supabase.removeChannel(channel); };
 }
 
 export function subscribeToVehicles(callback: (vehicles: Vehicle[]) => void) {
   const fetchVehicles = async () => {
     const { data, error } = await supabase.from('vehicles').select('*').limit(10000);
-    const local = getStoredVehicles();
-
     if (error) {
-      callback(local);
+      console.error('Supabase vehicles error:', error);
+      callback([]);
     } else {
-      const remote = data || [];
-      if (remote.length === 0 && local.length > INITIAL_VEHICLES.length) {
-        supabase.from('vehicles').upsert(local).then(({error: syncErr}) => {
-          if (syncErr) console.error('Auto-sync vehicles error:', syncErr);
-        });
-        callback(local);
-      } else if (remote.length === 0 && local.length === 0) {
-        callback([]);
-      } else {
-        saveVehicles(remote);
-        callback(remote);
-      }
+      callback(data || []);
     }
   };
-
   fetchVehicles();
-
   const channel = supabase
     .channel('vehicles-changes-' + Math.random().toString(36).substring(2))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, () => {
       fetchVehicles();
     })
     .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}
-
-export async function upsertVehicleFirestore(vehicle: Vehicle) {
-  const { error } = await supabase.from('vehicles').upsert(vehicle);
-  if (error) throw error;
-}
-
-export async function deleteVehicleFirestore(vehicleId: string) {
-  const { error } = await supabase.from('vehicles').delete().eq('id', vehicleId);
-  if (error) throw error;
+  return () => { supabase.removeChannel(channel); };
 }
 
 export function subscribeToDrivers(callback: (drivers: Driver[]) => void) {
   const fetchDrivers = async () => {
     const { data, error } = await supabase.from('drivers').select('*').limit(10000);
-    const local = getStoredDrivers();
-
     if (error) {
-      callback(local);
+      console.error('Supabase drivers error:', error);
+      callback([]);
     } else {
-      const remote = data || [];
-      if (remote.length === 0 && local.length > INITIAL_DRIVERS.length) {
-        supabase.from('drivers').upsert(local).then(({error: syncErr}) => {
-          if (syncErr) console.error('Auto-sync drivers error:', syncErr);
-        });
-        callback(local);
-      } else if (remote.length === 0 && local.length === 0) {
-        callback([]);
-      } else {
-        saveDrivers(remote);
-        callback(remote);
-      }
+      callback(data || []);
     }
   };
-
   fetchDrivers();
-
   const channel = supabase
     .channel('drivers-changes-' + Math.random().toString(36).substring(2))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, () => {
       fetchDrivers();
     })
     .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}
-
-export async function upsertDriverFirestore(driver: Driver) {
-  const { error } = await supabase.from('drivers').upsert(driver);
-  if (error) throw error;
-}
-
-export async function deleteDriverFirestore(driverId: string) {
-  const { error } = await supabase.from('drivers').delete().eq('id', driverId);
-  if (error) throw error;
+  return () => { supabase.removeChannel(channel); };
 }
 
 export function subscribeToDestinations(callback: (destinations: DestinationHospital[]) => void) {
   const fetchDestinations = async () => {
     const { data, error } = await supabase.from('destinations').select('*').limit(10000);
-    const local = getStoredDestinations();
-
     if (error) {
-      callback(local);
+      console.error('Supabase destinations error:', error);
+      callback([]);
     } else {
-      const remote = data || [];
-      if (remote.length === 0 && local.length > INITIAL_DESTINATIONS.length) {
-        supabase.from('destinations').upsert(local).then(({error: syncErr}) => {
-          if (syncErr) console.error('Auto-sync destinations error:', syncErr);
-        });
-        callback(local);
-      } else if (remote.length === 0 && local.length === 0) {
-        callback([]);
-      } else {
-        saveDestinations(remote);
-        callback(remote);
-      }
+      callback(data || []);
     }
   };
-
   fetchDestinations();
-
   const channel = supabase
     .channel('destinations-changes-' + Math.random().toString(36).substring(2))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'destinations' }, () => {
       fetchDestinations();
     })
     .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}
-
-export async function upsertDestinationFirestore(dest: DestinationHospital) {
-  const { error } = await supabase.from('destinations').upsert(dest);
-  if (error) throw error;
-}
-
-export async function deleteDestinationFirestore(destId: string) {
-  const { error } = await supabase.from('destinations').delete().eq('id', destId);
-  if (error) throw error;
+  return () => { supabase.removeChannel(channel); };
 }
 
 export function subscribeToTrips(callback: (trips: Trip[]) => void) {
   const fetchTrips = async () => {
     const { data, error } = await supabase.from('trips').select('*').limit(10000);
-    const deletedIds = getDeletedTripIds();
-    const local = getStoredTrips().filter(t => !deletedIds.includes(t.id));
-
     if (error) {
-      callback(local);
+      console.error('Supabase trips error:', error);
+      callback([]);
     } else {
-      const remote = (data || [])
-        .map(item => ({
-          ...item,
-          passengers: ensurePassengerArray(item.passengers),
-        }))
-        .filter(t => !deletedIds.includes(t.id));
-
-      if (remote.length === 0 && local.length > 0) {
-        // Sync local to remote
-        supabase.from('trips').upsert(local).then(({error: syncErr}) => {
-          if (syncErr) console.error('Auto-sync trips error:', syncErr);
-        });
-        callback(local);
-      } else {
-        saveTrips(remote);
-        callback(remote);
-      }
+      callback((data || []).map(item => ({ ...item, passengers: ensurePassengerArray(item.passengers) })));
     }
   };
-
   fetchTrips();
-
   const channel = supabase
     .channel('trips-changes-' + Math.random().toString(36).substring(2))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => {
       fetchTrips();
     })
     .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}
-
-export async function upsertTripFirestore(trip: Trip) {
-  const { error } = await supabase.from('trips').upsert(trip);
-  if (error) throw error;
-}
-
-export async function deleteTripFirestore(tripId: string) {
-  markTripAsDeleted(tripId);
-  const { error } = await supabase.from('trips').delete().eq('id', tripId);
-  if (error) throw error;
+  return () => { supabase.removeChannel(channel); };
 }
 
 export function subscribeToConfig(callback: (config: MunicipalConfig) => void) {
   const fetchConfig = async () => {
-    const { data, error } = await supabase.from('config').select('*').eq('id', 'municipal').single();
-    if (error || !data) {
-      callback(getStoredConfig());
-    } else {
+    const { data, error } = await supabase.from('config').select('*').eq('id', 'municipal').maybeSingle();
+    if (error) {
+      console.error('Supabase config error:', error);
+    } else if (data) {
       callback(data.data as MunicipalConfig);
+    } else {
+      // If no config found, seed it
+      console.log('No config found, seeding...');
+      seedAllFirestore().then(fetchConfig);
     }
   };
 
   fetchConfig();
-
   const channel = supabase
     .channel('config-changes-' + Math.random().toString(36).substring(2))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'config' }, () => {
       fetchConfig();
     })
     .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return () => { supabase.removeChannel(channel); };
 }
 
 export async function updateConfigFirestore(cfg: MunicipalConfig) {
@@ -456,6 +316,57 @@ export async function deleteUserFirestore(userId: string) {
   }
 }
 
+
+export async function upsertPatientFirestore(patient: Patient) {
+  const { error } = await supabase.from('patients').upsert(patient);
+  if (error) throw error;
+}
+
+export async function deletePatientFirestore(patientId: string) {
+  const { error } = await supabase.from('patients').delete().eq('id', patientId);
+  if (error) throw error;
+}
+
+export async function upsertVehicleFirestore(vehicle: Vehicle) {
+  const { error } = await supabase.from('vehicles').upsert(vehicle);
+  if (error) throw error;
+}
+
+export async function deleteVehicleFirestore(vehicleId: string) {
+  const { error } = await supabase.from('vehicles').delete().eq('id', vehicleId);
+  if (error) throw error;
+}
+
+export async function upsertDriverFirestore(driver: Driver) {
+  const { error } = await supabase.from('drivers').upsert(driver);
+  if (error) throw error;
+}
+
+export async function deleteDriverFirestore(driverId: string) {
+  const { error } = await supabase.from('drivers').delete().eq('id', driverId);
+  if (error) throw error;
+}
+
+export async function upsertDestinationFirestore(dest: DestinationHospital) {
+  const { error } = await supabase.from('destinations').upsert(dest);
+  if (error) throw error;
+}
+
+export async function deleteDestinationFirestore(destId: string) {
+  const { error } = await supabase.from('destinations').delete().eq('id', destId);
+  if (error) throw error;
+}
+
+export async function upsertTripFirestore(trip: Trip) {
+  const { error } = await supabase.from('trips').upsert(trip);
+  if (error) throw error;
+}
+
+export async function deleteTripFirestore(tripId: string) {
+  const { error } = await supabase.from('trips').delete().eq('id', tripId);
+  if (error) throw error;
+}
+
 export async function performBatchWrite(
   itemsToUpsert: { collectionName: string; id: string; data: any }[],
   itemsToDelete: { collectionName: string; id: string }[]
@@ -491,3 +402,4 @@ export async function performBatchWrite(
 
   await Promise.all([...upsertPromises, ...deletePromises]);
 }
+
