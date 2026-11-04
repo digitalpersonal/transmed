@@ -62,93 +62,93 @@ export const PrintClosureModal: React.FC<PrintClosureModalProps> = ({
         </div>
 
         {/* Printable Content */}
-        <div className="p-8 text-slate-800 text-xs font-sans bg-white overflow-y-auto flex-1 print:overflow-visible print:p-0 print:m-0">
+        <div className="p-8 text-slate-800 text-xs font-sans bg-white overflow-y-auto flex-1 print:overflow-visible print:p-2 print:m-0 print:text-[11px]">
           {/* Header Timbrado Oficial */}
-          <div className="border-b-2 border-slate-900 pb-4 mb-4 flex items-start justify-between">
+          <div className="border-b-2 border-slate-900 pb-4 mb-4 print:pb-2 print:mb-2 flex items-start justify-between">
             <div>
-              <h1 className="text-base font-black uppercase text-slate-900">{config.municipalityName}</h1>
-              <h2 className="text-sm font-bold text-emerald-800">{config.departmentName}</h2>
-              <p className="text-xs text-slate-500">{config.address} • Fone: {config.phone}</p>
-              <p className="text-sm font-bold text-slate-900 mt-2 uppercase tracking-wide">
+              <h1 className="text-base print:text-sm font-black uppercase text-slate-900">{config.municipalityName}</h1>
+              <h2 className="text-sm print:text-xs font-bold text-emerald-800">{config.departmentName}</h2>
+              <p className="text-xs print:text-[10px] text-slate-500">{config.address} • Fone: {config.phone}</p>
+              <p className="text-sm print:text-xs font-bold text-slate-900 mt-2 print:mt-1 uppercase tracking-wide">
                 TERMO OFICIAL DE FECHAMENTO E REGISTRO DE VIAGEM SANITÁRIA (TFD)
               </p>
             </div>
             <div className="text-right">
-              <span className="inline-block px-3 py-1.5 bg-slate-900 text-white font-bold text-sm rounded">
+              <span className="inline-block px-3 py-1.5 print:px-2 print:py-0.5 bg-slate-900 text-white font-bold text-sm print:text-[10px] rounded">
                 VIAGEM FINALIZADA
               </span>
-              <p className="text-sm font-mono font-bold text-slate-900 mt-2">{trip.code}</p>
-              <p className="text-xs text-slate-500">Registrado em: {closure.closedAt}</p>
+              <p className="text-sm print:text-xs font-mono font-bold text-slate-900 mt-2 print:mt-1">{trip.code}</p>
+              <p className="text-xs print:text-[10px] text-slate-500">Registrado em: {closure.closedAt}</p>
             </div>
           </div>
 
           {/* Dados Gerais do Trajeto e Veículo */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200 mb-6 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 print:gap-1.5 p-4 print:p-2 bg-slate-50 rounded-lg border border-slate-200 mb-6 print:mb-3 text-sm print:text-[11px]">
             <div>
-              <span className="text-slate-500 font-semibold block text-xs uppercase">Data da Viagem</span>
-              <span className="font-bold text-slate-900 text-base">{formatDateBR(trip.departureDate)}</span>
+              <span className="text-slate-500 font-semibold block text-xs print:text-[10px] uppercase">Data da Viagem</span>
+              <span className="font-bold text-slate-900 text-base print:text-xs">{formatDateBR(trip.departureDate)}</span>
             </div>
             <div>
-              <span className="text-slate-500 font-semibold block text-xs uppercase">Cidade Destino</span>
-              <span className="font-bold text-slate-900 text-base">{trip.destinationCity}</span>
+              <span className="text-slate-500 font-semibold block text-xs print:text-[10px] uppercase">Cidade Destino</span>
+              <span className="font-bold text-slate-900 text-base print:text-xs">{trip.destinationCity}</span>
             </div>
             <div>
-              <span className="text-slate-500 font-semibold block text-xs uppercase">Veículo / Placa</span>
-              <span className="font-bold text-slate-900">
+              <span className="text-slate-500 font-semibold block text-xs print:text-[10px] uppercase">Veículo / Placa</span>
+              <span className="font-bold text-slate-900 print:text-[11px]">
                 {vehicle ? `${vehicle.model} (${formatPlate(vehicle.plate)})` : 'Veículo Oficial'}
               </span>
             </div>
             <div>
-              <span className="text-slate-500 font-semibold block text-xs uppercase">Motorista Escalado</span>
-              <span className="font-bold text-slate-900">{trip.driverName}</span>
+              <span className="text-slate-500 font-semibold block text-xs print:text-[10px] uppercase">Motorista Escalado</span>
+              <span className="font-bold text-slate-900 print:text-[11px]">{trip.driverName}</span>
             </div>
 
             <div>
-              <span className="text-slate-500 font-semibold block text-xs uppercase">Horário Saída Real</span>
-              <span className="font-bold text-slate-900 text-base">{closure.departureTimeActual || trip.departureTime}</span>
+              <span className="text-slate-500 font-semibold block text-xs print:text-[10px] uppercase">Horário Saída Real</span>
+              <span className="font-bold text-slate-900 text-base print:text-xs">{closure.departureTimeActual || trip.departureTime}</span>
             </div>
             <div>
-              <span className="text-slate-500 font-semibold block text-xs uppercase">Horário Retorno Real</span>
-              <span className="font-bold text-slate-900 text-base">{closure.returnTimeActual}</span>
+              <span className="text-slate-500 font-semibold block text-xs print:text-[10px] uppercase">Horário Retorno Real</span>
+              <span className="font-bold text-slate-900 text-base print:text-xs">{closure.returnTimeActual}</span>
             </div>
             <div>
-              <span className="text-slate-500 font-semibold block text-xs uppercase">Odômetro Saída / Chegada</span>
-              <span className="font-bold text-slate-900 font-mono text-base">{closure.startKm} km → {closure.endKm} km</span>
+              <span className="text-slate-500 font-semibold block text-xs print:text-[10px] uppercase">Odômetro Saída / Chegada</span>
+              <span className="font-bold text-slate-900 font-mono text-base print:text-xs">{closure.startKm} km → {closure.endKm} km</span>
             </div>
             <div>
-              <span className="text-slate-500 font-semibold block text-xs uppercase">Quilometragem Total</span>
-              <span className="font-black text-emerald-800 font-mono text-lg">{closure.totalKm} km</span>
+              <span className="text-slate-500 font-semibold block text-xs print:text-[10px] uppercase">Quilometragem Total</span>
+              <span className="font-black text-emerald-800 font-mono text-lg print:text-sm">{closure.totalKm} km</span>
             </div>
           </div>
 
           {/* Resumo de Frequência e Vistoria */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2 mb-6 print:mb-3">
             {/* 1. Resumo de Frequência e Lotação */}
-            <div className="border border-slate-200 rounded-lg p-4 bg-white">
-              <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider pb-2 border-b border-slate-100 mb-3 flex items-center justify-between">
+            <div className="border border-slate-200 rounded-lg p-4 print:p-2 bg-white">
+              <h4 className="font-bold text-sm print:text-xs text-slate-900 uppercase tracking-wider pb-2 print:pb-1 border-b border-slate-100 mb-3 print:mb-1.5 flex items-center justify-between">
                 <span>1. Frequência dos Passageiros</span>
-                <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
+                <span className="text-xs print:text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
                   Efetividade: {attendancePercent}%
                 </span>
               </h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between py-1 border-b border-slate-100">
+              <div className="space-y-2 print:space-y-1 text-sm print:text-[11px]">
+                <div className="flex justify-between py-1 print:py-0.5 border-b border-slate-100">
                   <span className="text-slate-600">Pacientes Agendados:</span>
                   <span className="font-bold text-slate-900">{totalPatients} pacientes</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
+                <div className="flex justify-between py-1 print:py-0.5 border-b border-slate-100">
                   <span className="text-slate-600">Acompanhantes Registrados:</span>
                   <span className="font-bold text-slate-900">{totalCompanions} acompanhantes</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 font-semibold text-slate-800">
+                <div className="flex justify-between py-1 print:py-0.5 border-b border-slate-100 font-semibold text-slate-800">
                   <span>Total de Lugares Agendados:</span>
                   <span>{totalPeopleScheduled} pessoas</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 text-emerald-700 font-bold">
+                <div className="flex justify-between py-1 print:py-0.5 border-b border-slate-100 text-emerald-700 font-bold">
                   <span>Pessoas Embarcadas (Efetivo):</span>
                   <span>{boardedCount} pessoas</span>
                 </div>
-                <div className="flex justify-between py-1 text-rose-700">
+                <div className="flex justify-between py-1 print:py-0.5 text-rose-700">
                   <span>Faltas (No-Show sem aviso):</span>
                   <span className="font-bold">{missedCount} faltas</span>
                 </div>
@@ -156,26 +156,26 @@ export const PrintClosureModal: React.FC<PrintClosureModalProps> = ({
             </div>
 
             {/* 2. Vistoria e Estado do Veículo */}
-            <div className="border border-slate-200 rounded-lg p-4 bg-white">
-              <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider pb-2 border-b border-slate-100 mb-3">
+            <div className="border border-slate-200 rounded-lg p-4 print:p-2 bg-white">
+              <h4 className="font-bold text-sm print:text-xs text-slate-900 uppercase tracking-wider pb-2 print:pb-1 border-b border-slate-100 mb-3 print:mb-1.5">
                 2. Vistoria e Estado do Veículo
               </h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between py-1 border-b border-slate-100">
+              <div className="space-y-2 print:space-y-1 text-sm print:text-[11px]">
+                <div className="flex justify-between py-1 print:py-0.5 border-b border-slate-100">
                   <span className="text-slate-600">Nível de Combustível no Retorno:</span>
                   <span className="font-bold text-slate-900">{closure.fuelLevelReturn || 'Cheio'}</span>
                 </div>
                 {closure.fuelLitres ? (
-                  <div className="flex justify-between py-1 border-b border-slate-100">
+                  <div className="flex justify-between py-1 print:py-0.5 border-b border-slate-100">
                     <span className="text-slate-600">Combustível Abastecido (Litros):</span>
                     <span className="font-bold text-slate-900">{closure.fuelLitres} L</span>
                   </div>
                 ) : null}
-                <div className="flex justify-between py-1 border-b border-slate-100">
+                <div className="flex justify-between py-1 print:py-0.5 border-b border-slate-100">
                   <span className="text-slate-600">Higienização e Limpeza:</span>
                   <span className="font-bold text-slate-900">{closure.vehicleCleanliness || 'Bom'}</span>
                 </div>
-                <div className="flex justify-between py-1">
+                <div className="flex justify-between py-1 print:py-0.5">
                   <span className="text-slate-600">Alerta de Manutenção:</span>
                   <span className={`font-bold ${closure.vehicleMaintenanceAlert ? 'text-rose-700' : 'text-emerald-700'}`}>
                     {closure.vehicleMaintenanceAlert ? '⚠️ REQUER MANUTENÇÃO' : '✓ Nenhuma Avaria'}
@@ -186,55 +186,55 @@ export const PrintClosureModal: React.FC<PrintClosureModalProps> = ({
           </div>
 
           {/* Relatório de Ocorrências e Intercorrências Médicas */}
-          <div className="border border-slate-200 rounded-lg p-4 mb-6 bg-white">
-            <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider mb-2">
+          <div className="border border-slate-200 rounded-lg p-4 print:p-2.5 mb-6 print:mb-3 bg-white">
+            <h4 className="font-bold text-sm print:text-xs text-slate-900 uppercase tracking-wider mb-2 print:mb-1">
               3. Relatório Oficial de Ocorrências e Intercorrências Médicas no Trajeto
             </h4>
-            <p className="text-sm text-slate-800 whitespace-pre-line leading-relaxed bg-slate-50 p-3 rounded border border-slate-100">
+            <p className="text-sm print:text-[11px] text-slate-800 whitespace-pre-line leading-relaxed bg-slate-50 p-3 print:p-2 rounded border border-slate-100">
               {closure.incidents || 'Viagem realizada sem intercorrências médicas. Todos os atendimentos foram concluídos.'}
             </p>
             {closure.driverNotes && (
-              <p className="text-sm text-slate-600 mt-2 italic">
+              <p className="text-sm print:text-[11px] text-slate-600 mt-2 print:mt-1 italic">
                 Observação do Motorista: "{closure.driverNotes}"
               </p>
             )}
             {closure.vehicleMaintenanceNotes && (
-              <p className="text-sm text-rose-700 font-medium mt-1">
+              <p className="text-sm print:text-[11px] text-rose-700 font-medium mt-1">
                 Nota de Manutenção: {closure.vehicleMaintenanceNotes}
               </p>
             )}
           </div>
 
           {/* Lista Resumida dos Passageiros e Presença para Arquivo */}
-          <div className="mb-8">
-            <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider mb-2">
+          <div className="mb-8 print:mb-4">
+            <h4 className="font-bold text-sm print:text-xs text-slate-900 uppercase tracking-wider mb-2 print:mb-1">
               4. Lista de Chamada e Presença dos Pacientes
             </h4>
-            <table className="w-full text-left text-xs border-collapse border border-slate-200">
+            <table className="w-full text-left text-xs print:text-[10px] border-collapse border border-slate-200">
               <thead>
-                <tr className="bg-slate-100 font-bold border-b border-slate-200 text-slate-700 text-sm">
-                  <th className="py-2 px-3 border-r">Nº</th>
-                  <th className="py-2 px-3 border-r">Paciente</th>
-                  <th className="py-2 px-3 border-r">Acompanhante</th>
-                  <th className="py-2 px-3 border-r">Destino / Procedimento</th>
-                  <th className="py-2 px-3 text-center">Status Presença</th>
+                <tr className="bg-slate-100 font-bold border-b border-slate-200 text-slate-700 text-sm print:text-[11px]">
+                  <th className="py-2 px-3 print:py-1 print:px-2 border-r">Nº</th>
+                  <th className="py-2 px-3 print:py-1 print:px-2 border-r">Paciente</th>
+                  <th className="py-2 px-3 print:py-1 print:px-2 border-r">Acompanhante</th>
+                  <th className="py-2 px-3 print:py-1 print:px-2 border-r">Destino / Procedimento</th>
+                  <th className="py-2 px-3 print:py-1 print:px-2 text-center">Status Presença</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 text-sm">
+              <tbody className="divide-y divide-slate-200 text-sm print:text-[10px]">
                 {passList.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-3 text-center text-slate-400 italic">
+                    <td colSpan={5} className="py-3 print:py-2 text-center text-slate-400 italic">
                       Nenhum paciente listado
                     </td>
                   </tr>
                 ) : (
                   passList.map((p, i) => (
                     <tr key={p.id || i} className="hover:bg-slate-50">
-                      <td className="py-2 px-3 border-r text-center font-mono">{i + 1}</td>
-                      <td className="py-2 px-3 border-r font-bold text-slate-900">{p.patientName}</td>
-                      <td className="py-2 px-3 border-r text-slate-600">{p.companionIncluded ? p.companionName : '-'}</td>
-                      <td className="py-2 px-3 border-r text-slate-700">{p.destinationName} ({p.appointmentTime})</td>
-                      <td className="py-2 px-3 text-center font-bold">
+                      <td className="py-2 px-3 print:py-1 print:px-2 border-r text-center font-mono">{i + 1}</td>
+                      <td className="py-2 px-3 print:py-1 print:px-2 border-r font-bold text-slate-900">{p.patientName}</td>
+                      <td className="py-2 px-3 print:py-1 print:px-2 border-r text-slate-600">{p.companionIncluded ? p.companionName : '-'}</td>
+                      <td className="py-2 px-3 print:py-1 print:px-2 border-r text-slate-700">{p.destinationName} ({p.appointmentTime})</td>
+                      <td className="py-2 px-3 print:py-1 print:px-2 text-center font-bold">
                         {p.status === 'boarded' ? (
                           <span className="text-emerald-700">✓ COMPARECEU</span>
                         ) : p.status === 'missed' ? (
@@ -251,17 +251,17 @@ export const PrintClosureModal: React.FC<PrintClosureModalProps> = ({
           </div>
 
           {/* Assinaturas Digitais */}
-          <div className="grid grid-cols-2 gap-8 pt-8 border-t-2 border-slate-300">
+          <div className="grid grid-cols-2 gap-8 print:gap-4 pt-8 print:pt-4 border-t-2 border-slate-300">
             <div className="text-center">
-              <div className="border-b border-slate-400 h-10 mb-2"></div>
-              <p className="font-bold text-slate-900 text-sm">{trip.driverName}</p>
-              <p className="text-xs text-slate-500">Motorista Responsável pela Viagem</p>
+              <div className="border-b border-slate-400 h-10 print:h-8 mb-2 print:mb-1"></div>
+              <p className="font-bold text-slate-900 text-sm print:text-[11px]">{trip.driverName}</p>
+              <p className="text-xs print:text-[10px] text-slate-500">Motorista Responsável pela Viagem</p>
             </div>
 
             <div className="text-center">
-              <div className="border-b border-slate-400 h-10 mb-2"></div>
-              <p className="font-bold text-slate-900 text-sm">{closure.closedBy}</p>
-              <p className="text-xs text-slate-500">
+              <div className="border-b border-slate-400 h-10 print:h-8 mb-2 print:mb-1"></div>
+              <p className="font-bold text-slate-900 text-sm print:text-[11px]">{closure.closedBy}</p>
+              <p className="text-xs print:text-[10px] text-slate-500">
                 {closure.closedByRole || 'Coordenação de Transporte TFD'} {closure.closedByRegistration ? `(${closure.closedByRegistration})` : ''}
               </p>
             </div>

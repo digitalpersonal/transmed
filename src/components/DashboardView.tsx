@@ -163,13 +163,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <FileSpreadsheet className="w-4 h-4" />
                   Importar Planilha Excel
                 </button>
-                <button
-                  onClick={onClearSystem}
-                  className="flex items-center gap-2 px-3.5 py-2 bg-rose-900/80 hover:bg-rose-800 text-rose-200 rounded-lg text-xs font-bold border border-rose-500/40 transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Limpar Tudo
-                </button>
               </>
             )}
           </div>

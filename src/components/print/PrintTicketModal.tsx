@@ -235,7 +235,7 @@ export const PrintTicketModal: React.FC<PrintTicketModalProps> = ({
               <div className="w-80 max-w-full mx-auto text-center space-y-1">
                 <div className="border-b-2 border-slate-900 h-10 print:h-8"></div>
                 <p className="font-bold text-slate-900 text-xs print:text-[11px]">Assinatura do(a) Paciente ou Responsável</p>
-                <p className="text-[11px] print:text-[10px] text-slate-600 font-mono">CPF: {passenger.patientCpf}</p>
+                <p className="text-xs print:text-[10px] text-slate-800 font-bold">{passenger.patientName}</p>
               </div>
             </div>
 
