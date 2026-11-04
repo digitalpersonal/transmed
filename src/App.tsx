@@ -367,7 +367,19 @@ export default function App() {
     if (!capturedRows || capturedRows.length === 0) return;
 
     const todayStr = new Date().toISOString().slice(0, 10);
-    
+    const validPairs = capturedRows
+      .map((row, idx) => ({ row, patient: newPatients[idx] }))
+      .filter((pair) => (pair.row.dataViagem || todayStr) >= todayStr);
+
+    if (validPairs.length === 0) {
+      showToast('Nenhuma viagem válida (hoje ou futura) encontrada na planilha.', 'info');
+      return;
+    }
+
+    // Process valid pairs
+    capturedRows = validPairs.map(p => p.row);
+    newPatients = validPairs.map(p => p.patient);
+
     // Arrays representing updated states
     let localPatients = [...patients];
     let localVehicles = [...vehicles];
@@ -560,7 +572,7 @@ export default function App() {
           phone: parsedPat.phone || existingPat.phone,
           whatsapp: parsedPat.whatsapp || existingPat.whatsapp,
           address: parsedPat.address || existingPat.address,
-          boardingAddress: parsedPat.boardingAddress || existingPat.boardingAddress,
+          boardingAddress: parsedPat.boardingAddress || existingPat.address,
           procedureTime: parsedPat.procedureTime || existingPat.procedureTime,
           companionRequired: parsedPat.companionRequired !== undefined ? parsedPat.companionRequired : existingPat.companionRequired,
           companionName: parsedPat.companionName || existingPat.companionName,
@@ -589,7 +601,7 @@ export default function App() {
       // Check if trip already exists for this destination + date + vehicle
       let targetTrip = updatedTrips.find(t => 
         t.destinationCity.toLowerCase().includes(validatedCityName.toLowerCase()) &&
-        t.status === 'scheduled' &&
+        (t.status === 'scheduled' || t.status === 'in_route') &&
         t.departureDate === tripDate &&
         t.vehicleId === targetVehicle.id
       );
@@ -661,6 +673,9 @@ export default function App() {
 
     // Final sorting of patients alphabetically by name (MANDATORY REQUIREMENT)
     localPatients.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+    // Final sorting of trips by date (asc)
+    updatedTrips.sort((a, b) => a.departureDate.localeCompare(b.departureDate));
 
     // Save states locally
     setPatients(localPatients);
