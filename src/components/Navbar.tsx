@@ -17,11 +17,12 @@ import {
   FileText,
   LogOut,
   Wifi,
-  WifiOff
+  WifiOff,
+  Database
 } from 'lucide-react';
 import { MunicipalConfig } from '../types';
 
-export type ActiveTab = 'dashboard' | 'trips' | 'bookings' | 'patients' | 'vehicles' | 'drivers' | 'destinations' | 'reports' | 'bpa' | 'boarding';
+export type ActiveTab = 'dashboard' | 'trips' | 'bookings' | 'patients' | 'vehicles' | 'drivers' | 'destinations' | 'boarding' | 'reports' | 'bpa' | 'backups';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -87,6 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'boarding', label: 'Locais de Embarque', icon: MapPin },
     { id: 'reports', label: 'Fechamentos & Relatórios', icon: FileCheck },
     { id: 'bpa', label: 'Faturamento BPA', icon: FileText },
+    { id: 'backups', label: 'Agendar Backups', icon: Database },
   ];
 
   return (

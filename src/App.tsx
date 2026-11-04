@@ -10,6 +10,7 @@ import {
   Vehicle,
   Driver,
   SystemUser,
+  BackupSnapshot,
   ensurePassengerArray
 } from './types';
 import { 
@@ -55,6 +56,7 @@ import {
   subscribeToTrips, upsertTripFirestore, deleteTripFirestore, performBatchWrite,
   subscribeToConfig, updateConfigFirestore,
   subscribeToDestinationCities, updateDestinationCitiesFirestore,
+  subscribeToBackupSnapshots, saveBackupSnapshotFirestore, deleteBackupSnapshotFirestore,
   seedAllFirestore, clearTripsAndPatientsFirestore,
   subscribeToUsers, deleteDestinationFirestore
 } from './lib/supabaseSync';
@@ -70,6 +72,7 @@ import { DestinationCitiesView } from './components/DestinationCitiesView';
 import { ClosuresAndReportsView } from './components/ClosuresAndReportsView';
 import { BpaExportView } from './components/BpaExportView';
 import { BoardingAddressesView } from './components/BoardingAddressesView';
+import { BackupsView } from './components/BackupsView';
 
 // Modals
 import { PatientFormModal } from './components/modals/PatientFormModal';
@@ -111,6 +114,34 @@ export default function App() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [destinations, setDestinations] = useState<DestinationHospital[]>([]);
   const [config, setConfig] = useState<MunicipalConfig>(getMunicipalConfig());
+  const [backupSnapshots, setBackupSnapshots] = useState<BackupSnapshot[]>([]);
+  const [destinationCities, setDestinationCities] = useState<DestinationCity[]>(() => {
+    const stored = getStoredDestinationCities();
+    const existingNames = new Set<string>();
+    const merged: DestinationCity[] = [];
+
+    INITIAL_DESTINATION_CITIES.forEach(c => {
+      const name = c.cityName.toUpperCase().trim();
+      if (!existingNames.has(name)) {
+        merged.push(c);
+        existingNames.add(name);
+      }
+    });
+
+    stored.forEach(c => {
+      const name = c.cityName.toUpperCase().trim();
+      if (!existingNames.has(name)) {
+        merged.push(c);
+        existingNames.add(name);
+      }
+    });
+    
+    if (merged.length !== stored.length) {
+      saveDestinationCities(merged);
+    }
+    
+    return merged;
+  });
 
   // Toast Notification
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -257,6 +288,10 @@ export default function App() {
       setDestinationCities(citiesList);
       checkAllLoaded();
     });
+    const unsubSnapshots = subscribeToBackupSnapshots((snaps) => {
+      console.log('[App] Received backup snapshots from Supabase:', snaps.length);
+      setBackupSnapshots(snaps);
+    });
 
     return () => {
       unsubPatients();
@@ -266,8 +301,92 @@ export default function App() {
       unsubTrips();
       unsubConfig();
       unsubCities();
+      unsubSnapshots();
     };
   }, []);
+
+  // Backup Snapshot Management
+  const handleCreateSnapshot = async (trigger: 'automatic' | 'manual' = 'manual') => {
+    try {
+      const fullBackupObj = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        patients,
+        vehicles,
+        trips,
+        destinations,
+        destinationCities,
+        config,
+        drivers,
+        users: systemUsers,
+      };
+
+      const newSnap: BackupSnapshot = {
+        id: `snap-${trigger}-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        trigger,
+        patientsCount: patients.length,
+        tripsCount: trips.length,
+        vehiclesCount: vehicles.length,
+        driversCount: drivers.length,
+        fullDataJSON: JSON.stringify(fullBackupObj, null, 2),
+      };
+
+      await saveBackupSnapshotFirestore(newSnap);
+      if (trigger === 'manual') {
+        showToast('Backup manual registrado e salvo na nuvem com sucesso!', 'success');
+      }
+    } catch (err) {
+      console.error('Error creating backup snapshot:', err);
+      showToast('Erro ao criar backup na nuvem.', 'error');
+    }
+  };
+
+  const handleRestoreSnapshot = async (snap: BackupSnapshot) => {
+    try {
+      handleImportBackup(snap.fullDataJSON);
+      showToast(`Backup de ${new Date(snap.createdAt).toLocaleString('pt-BR')} restaurado com sucesso!`, 'success');
+    } catch (err) {
+      console.error('Error restoring snapshot:', err);
+      showToast('Erro ao restaurar o backup.', 'error');
+    }
+  };
+
+  const handleDeleteSnapshot = async (snapId: string) => {
+    try {
+      await deleteBackupSnapshotFirestore(snapId);
+      showToast('Registro de backup removido.', 'info');
+    } catch (err) {
+      console.error('Error deleting snapshot:', err);
+    }
+  };
+
+  // Automatic Scheduled Backup Engine
+  useEffect(() => {
+    if (config.autoBackupEnabled === false) return;
+    const targetTime = config.autoBackupTime || '23:00';
+
+    const checkAutoBackup = async () => {
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+      const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      if (currentHHMM >= targetTime && config.lastAutoBackupDate !== todayStr) {
+        console.log(`[AutoBackup] Running daily automated backup for ${todayStr} at ${currentHHMM}`);
+        
+        const updatedConfig = { ...config, lastAutoBackupDate: todayStr };
+        setConfig(updatedConfig);
+        updateConfigFirestore(updatedConfig).catch(() => {});
+
+        await handleCreateSnapshot('automatic');
+        showToast(`Backup automático diário (${targetTime}) salvo na nuvem com sucesso!`, 'success');
+      }
+    };
+
+    checkAutoBackup();
+    const interval = setInterval(checkAutoBackup, 30000);
+    return () => clearInterval(interval);
+  }, [config, patients, trips, vehicles, drivers, destinations, destinationCities, systemUsers]);
 
   // Modal Visibility States
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
@@ -278,40 +397,6 @@ export default function App() {
 
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
-
-  const [destinationCities, setDestinationCities] = useState<DestinationCity[]>(() => {
-    const stored = getStoredDestinationCities();
-    const officialNames = new Set(INITIAL_DESTINATION_CITIES.map(c => c.cityName.toUpperCase().trim()));
-    
-    // We want to keep official cities + any cities that were added manually (and are not already in official)
-    const existingNames = new Set<string>();
-    const merged: DestinationCity[] = [];
-
-    // 1. Add official cities first to ensure they are the base
-    INITIAL_DESTINATION_CITIES.forEach(c => {
-      const name = c.cityName.toUpperCase().trim();
-      if (!existingNames.has(name)) {
-        merged.push(c);
-        existingNames.add(name);
-      }
-    });
-
-    // 2. Add stored cities that are NOT in the official list (manually added)
-    stored.forEach(c => {
-      const name = c.cityName.toUpperCase().trim();
-      if (!existingNames.has(name)) {
-        merged.push(c);
-        existingNames.add(name);
-      }
-    });
-    
-    // Save the cleaned list back to storage if it changed
-    if (merged.length !== stored.length) {
-      saveDestinationCities(merged);
-    }
-    
-    return merged;
-  });
   const [isDestinationCityModalOpen, setIsDestinationCityModalOpen] = useState(false);
   const [editingDestinationCity, setEditingDestinationCity] = useState<DestinationCity | null>(null);
 
@@ -1459,6 +1544,21 @@ export default function App() {
             isAdmin={isAdmin}
           />
         )}
+
+        {activeTab === 'backups' && (
+          <BackupsView
+            config={config}
+            snapshots={backupSnapshots}
+            onUpdateConfig={handleSaveConfig}
+            onCreateSnapshot={handleCreateSnapshot}
+            onRestoreSnapshot={handleRestoreSnapshot}
+            onDeleteSnapshot={handleDeleteSnapshot}
+            onExportBackup={exportDatabaseBackup}
+            onImportBackup={handleImportBackup}
+            showToast={showToast}
+            isAdmin={isAdmin}
+          />
+        )}
       </main>
 
       {/* Footer */}
@@ -1594,11 +1694,15 @@ export default function App() {
       {isConfigModalOpen && (
         <ConfigModal
           config={config}
+          snapshots={backupSnapshots}
           onSaveConfig={handleSaveConfig}
           onResetData={handleResetData}
           onClearAllData={handleClearAllData}
           onExportBackup={exportDatabaseBackup}
           onImportBackup={handleImportBackup}
+          onCreateSnapshot={handleCreateSnapshot}
+          onRestoreSnapshot={handleRestoreSnapshot}
+          onDeleteSnapshot={handleDeleteSnapshot}
           onClose={() => setIsConfigModalOpen(false)}
           isAdmin={isAdmin}
         />

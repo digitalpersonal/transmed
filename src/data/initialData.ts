@@ -92,6 +92,9 @@ export const INITIAL_MUNICIPAL_CONFIG: MunicipalConfig = {
     'Levar receitas, encaminhamentos e exames pertinentes ao atendimento.',
     'Em caso de desistência ou cancelamento da consulta, avisar com 24h de antecedência.',
   ],
+  autoBackupEnabled: true,
+  autoBackupTime: '23:00',
+  lastAutoBackupDate: '',
 };
 
 export const INITIAL_DESTINATIONS: DestinationHospital[] = [

@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS trips (
   "estimatedReturnTime" text,
   "originCity" text,
   "destinationCity" text,
+  "destinationHospital" text,
   "departureLocation" text,
   "vehicleId" text,
   "driverId" text,

@@ -213,6 +213,17 @@ export function ensurePassengerArray(passengers: any): TripPassenger[] {
   return [];
 }
 
+export interface BackupSnapshot {
+  id: string;
+  createdAt: string; // ISO string
+  trigger: 'automatic' | 'manual';
+  patientsCount: number;
+  tripsCount: number;
+  vehiclesCount: number;
+  driversCount: number;
+  fullDataJSON: string;
+}
+
 export interface MunicipalConfig {
   municipalityName: string;
   departmentName: string;
@@ -223,6 +234,9 @@ export interface MunicipalConfig {
   tfdCoordinator: string;
   instructionsPatient: string[];
   cnesUnit?: string; // CNES da Unidade (7 dígitos)
+  autoBackupEnabled?: boolean; // Se o backup automático está ativo (Padrão: true)
+  autoBackupTime?: string; // Horário diário pré-determinado (Padrão: '23:00')
+  lastAutoBackupDate?: string; // Registro da última data de execução (YYYY-MM-DD)
 }
 
 export interface SystemUser {

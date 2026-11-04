@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Patient, Vehicle, Driver, DestinationHospital, DestinationCity, Trip, MunicipalConfig, SystemUser, ensurePassengerArray } from '../types';
+import { Patient, Vehicle, Driver, DestinationHospital, DestinationCity, Trip, MunicipalConfig, SystemUser, BackupSnapshot, ensurePassengerArray } from '../types';
 import { INITIAL_PATIENTS, INITIAL_VEHICLES, INITIAL_DRIVERS, INITIAL_DESTINATIONS, INITIAL_TRIPS, INITIAL_MUNICIPAL_CONFIG, INITIAL_DESTINATION_CITIES } from '../data/initialData';
 import { 
   getStoredPatients, savePatients, 
@@ -252,6 +252,58 @@ export function subscribeToDestinationCities(callback: (cities: DestinationCity[
 export async function updateDestinationCitiesFirestore(cities: DestinationCity[]) {
   const { error } = await supabase.from('config').upsert({ id: 'destination-cities', data: cities });
   if (error) throw error;
+}
+
+export function subscribeToBackupSnapshots(callback: (snapshots: BackupSnapshot[]) => void) {
+  const fetchSnapshots = async () => {
+    const { data, error } = await supabase.from('config').select('*').eq('id', 'backup-snapshots').maybeSingle();
+    if (error || !data) {
+      callback([]);
+    } else {
+      const list = Array.isArray(data.data) ? data.data : [];
+      callback(list as BackupSnapshot[]);
+    }
+  };
+
+  fetchSnapshots();
+
+  const channel = supabase
+    .channel('snapshots-changes-' + Math.random().toString(36).substring(2))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'config' }, () => {
+      fetchSnapshots();
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+export async function saveBackupSnapshotFirestore(snapshot: BackupSnapshot) {
+  try {
+    const { data } = await supabase.from('config').select('*').eq('id', 'backup-snapshots').maybeSingle();
+    const existing: BackupSnapshot[] = data && Array.isArray(data.data) ? data.data : [];
+    // Keep max 30 recent snapshots
+    const updated = [snapshot, ...existing.filter(s => s.id !== snapshot.id)].slice(0, 30);
+    const { error } = await supabase.from('config').upsert({ id: 'backup-snapshots', data: updated });
+    if (error) throw error;
+  } catch (err) {
+    console.error('Error saving backup snapshot:', err);
+    throw err;
+  }
+}
+
+export async function deleteBackupSnapshotFirestore(snapshotId: string) {
+  try {
+    const { data } = await supabase.from('config').select('*').eq('id', 'backup-snapshots').maybeSingle();
+    const existing: BackupSnapshot[] = data && Array.isArray(data.data) ? data.data : [];
+    const updated = existing.filter(s => s.id !== snapshotId);
+    const { error } = await supabase.from('config').upsert({ id: 'backup-snapshots', data: updated });
+    if (error) throw error;
+  } catch (err) {
+    console.error('Error deleting backup snapshot:', err);
+    throw err;
+  }
 }
 
 export function subscribeToUsers(callback: (users: SystemUser[]) => void) {
