@@ -1450,6 +1450,7 @@ export default function App() {
       {isExcelImportModalOpen && (
         <ExcelImportModal
           onImportPatients={handleImportPatientsFromExcel}
+          onClearAllData={handleClearAllData}
           onClose={() => setIsExcelImportModalOpen(false)}
         />
       )}

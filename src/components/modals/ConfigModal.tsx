@@ -26,6 +26,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   const [formData, setFormData] = useState<MunicipalConfig>({ ...config });
   const [newInstruction, setNewInstruction] = useState<string>('');
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const handleAddInstruction = () => {
     if (!newInstruction.trim()) return;
@@ -245,6 +246,32 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
                     </button>
                   )}
                 </>
+              )}
+            </div>
+          </div>
+
+          {/* Zerar Viagens e BPAs / Pacientes */}
+          <div className="border border-rose-200 rounded-lg p-4 bg-rose-50/55 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h5 className="font-bold text-rose-900 text-xs">Zerar Todas as Viagens e BPAs / Pacientes</h5>
+              <p className="text-[11px] text-rose-700">Remove permanentemente todas as viagens e cadastros de pacientes para reiniciar o sistema.</p>
+            </div>
+            <div>
+              {confirmClear ? (
+                <div className="flex items-center gap-2 bg-white p-1.5 rounded border border-rose-300 shadow-xs">
+                  <span className="text-xs text-rose-800 font-bold px-1">Tem certeza?</span>
+                  <button type="button" onClick={() => setConfirmClear(false)} className="px-2 py-1 text-xs text-slate-600 bg-slate-100 rounded hover:bg-slate-200 cursor-pointer">Cancelar</button>
+                  <button type="button" onClick={() => { onClearAllData(); setConfirmClear(false); onClose(); }} className="px-2 py-1 text-xs text-white bg-rose-600 rounded hover:bg-rose-700 font-bold cursor-pointer">Zerar Tudo</button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClear(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs shadow-sm cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Zerar Viagens e BPAs
+                </button>
               )}
             </div>
           </div>

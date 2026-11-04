@@ -6,11 +6,13 @@ import { formatCPF, formatSUS, formatPhone, formatDateBR } from '../../utils/for
 
 interface ExcelImportModalProps {
   onImportPatients: (newPatients: Patient[], capturedRows?: ExcelCapturedRow[]) => void;
+  onClearAllData?: () => void;
   onClose: () => void;
 }
 
 export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   onImportPatients,
+  onClearAllData,
   onClose,
 }) => {
   const [parsedList, setParsedList] = useState<Patient[]>([]);
@@ -19,6 +21,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'preview' | 'columns_info'>('preview');
+  const [confirmClear, setConfirmClear] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const captureColumns = [
@@ -173,6 +176,34 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             <div>
               {parsedList.length === 0 ? (
                 <div className="space-y-4">
+                  {/* Zerar Viagens e BPAs antes de importar */}
+                  {onClearAllData && (
+                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-3">
+                      <div>
+                        <h5 className="font-bold text-rose-900 text-xs">Preparar para Produção</h5>
+                        <p className="text-[11px] text-rose-700">Deseja zerar todas as viagens e pacientes anteriores antes de importar a nova planilha?</p>
+                      </div>
+                      <div>
+                        {confirmClear ? (
+                          <div className="flex items-center gap-2 bg-white p-1 rounded border border-rose-300">
+                            <span className="text-[11px] text-rose-800 font-bold px-1">Tem certeza?</span>
+                            <button type="button" onClick={() => setConfirmClear(false)} className="px-2 py-1 text-xs text-slate-600 bg-slate-100 rounded hover:bg-slate-200 cursor-pointer">Não</button>
+                            <button type="button" onClick={() => { onClearAllData(); setConfirmClear(false); }} className="px-2 py-1 text-xs text-white bg-rose-600 rounded hover:bg-rose-700 font-bold cursor-pointer">Sim, Zerar</button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmClear(true)}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs shadow-sm cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Zerar Viagens e BPAs Atuais
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Visual Preview of the Sequence */}
                   <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200">
                     <p className="font-bold text-slate-800 text-xs mb-2">Ordem de Captura Esperada na Planilha:</p>
