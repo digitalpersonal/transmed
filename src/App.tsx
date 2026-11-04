@@ -69,6 +69,7 @@ import { DriversView } from './components/DriversView';
 import { DestinationCitiesView } from './components/DestinationCitiesView';
 import { ClosuresAndReportsView } from './components/ClosuresAndReportsView';
 import { BpaExportView } from './components/BpaExportView';
+import { BoardingAddressesView } from './components/BoardingAddressesView';
 
 // Modals
 import { PatientFormModal } from './components/modals/PatientFormModal';
@@ -598,13 +599,13 @@ export default function App() {
           phone: parsedPat.phone || existingPat.phone,
           whatsapp: parsedPat.whatsapp || existingPat.whatsapp,
           address: parsedPat.address || existingPat.address,
-          boardingAddress: parsedPat.boardingAddress || existingPat.address,
+          boardingAddress: parsedPat.boardingAddress || existingPat.boardingAddress || existingPat.address,
           procedureTime: parsedPat.procedureTime || existingPat.procedureTime,
           companionRequired: parsedPat.companionRequired !== undefined ? parsedPat.companionRequired : existingPat.companionRequired,
           companionName: parsedPat.companionName || existingPat.companionName,
           companionBirthDate: parsedPat.companionBirthDate || existingPat.companionBirthDate,
           companionCpf: parsedPat.companionCpf || existingPat.companionCpf,
-          companionAddress: parsedPat.companionAddress || existingPat.companionAddress,
+          companionAddress: parsedPat.companionAddress || existingPat.companionAddress || existingPat.boardingAddress || existingPat.address,
           companionKinship: parsedPat.companionKinship || existingPat.companionKinship,
           condition: parsedPat.condition || existingPat.condition,
         };
@@ -1422,6 +1423,10 @@ export default function App() {
             onCleanupHospitals={handleCleanupDestinations}
             isAdmin={isAdmin}
           />
+        )}
+        
+        {activeTab === 'boarding' && (
+          <BoardingAddressesView patients={patients} />
         )}
 
         {activeTab === 'reports' && (

@@ -46,6 +46,8 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   const [companionName, setCompanionName] = useState<string>('');
   const [companionCpf, setCompanionCpf] = useState<string>('');
   const [companionKinship, setCompanionKinship] = useState<string>('');
+  const [patientAddress, setPatientAddress] = useState<string>('');
+  const [companionAddress, setCompanionAddress] = useState<string>('');
   
   const [destinationId, setDestinationId] = useState<string>('');
   const [appointmentTime, setAppointmentTime] = useState<string>('08:00');
@@ -106,11 +108,12 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   const seatsRemaining = maxCapacity - currentOccupiedSeats;
   const isOverbooking = maxCapacity > 0 && seatsNeeded > seatsRemaining;
 
-  // When patient is selected, auto-fill default patient preferences
+  // When patient is selected, auto-fill default patient preferences and boarding locations
   useEffect(() => {
     if (selectedPatient) {
       setAppointmentType(selectedPatient.condition || 'Consulta Médica');
-      // Sync search input if it is empty and a patient is selected (e.g., on mount or preselection)
+      setPatientAddress(selectedPatient.boardingAddress || selectedPatient.address || '');
+      // Sync search input if it is empty and a patient is selected
       if (!patientSearch) {
         setPatientSearch(selectedPatient.name);
       }
@@ -119,8 +122,10 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
         setCompanionName(selectedPatient.companionName || '');
         setCompanionCpf(selectedPatient.companionCpf || '');
         setCompanionKinship(selectedPatient.companionKinship || '');
+        setCompanionAddress(selectedPatient.companionAddress || selectedPatient.boardingAddress || selectedPatient.address || '');
       } else {
         setCompanionIncluded(false);
+        setCompanionAddress(selectedPatient.companionAddress || selectedPatient.boardingAddress || selectedPatient.address || '');
       }
     }
   }, [selectedPatient]);
@@ -238,13 +243,13 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
       patientSus: formatSUS(selectedPatient.susCard),
       patientPhone: selectedPatient.phone,
       patientWhatsapp: selectedPatient.whatsapp || selectedPatient.phone,
-      patientAddress: selectedPatient.boardingAddress || selectedPatient.address,
+      patientAddress: patientAddress.trim() || selectedPatient.boardingAddress || selectedPatient.address,
       mobility: selectedPatient.mobility,
       companionIncluded,
       companionName: companionIncluded ? companionName.trim() : undefined,
       companionBirthDate: companionIncluded ? selectedPatient.companionBirthDate : undefined,
       companionCpf: companionIncluded && companionCpf ? formatCPF(companionCpf) : undefined,
-      companionAddress: companionIncluded ? (selectedPatient.companionAddress || selectedPatient.boardingAddress || selectedPatient.address) : undefined,
+      companionAddress: companionIncluded ? (companionAddress.trim() || patientAddress.trim() || selectedPatient.address) : undefined,
       companionKinship: companionIncluded ? companionKinship.trim() : undefined,
       destinationId: destObj?.id || 'dest-general',
       destinationName: destObj?.name || selectedTrip.destinationCity,
@@ -494,6 +499,24 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Local de Embarque do Paciente */}
+            <div className="mt-3">
+              <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                <span>Ponto / Local de Embarque do Paciente no Município</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Rua das Flores 120, UBS Central ou Praça da Matriz"
+                value={patientAddress}
+                onChange={(e) => setPatientAddress(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-emerald-600"
+              />
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                Endereço ou ponto de referência exato onde o motorista apanhará este paciente.
+              </p>
+            </div>
           </div>
 
           {/* Passo 3: Acompanhante */}
@@ -550,6 +573,20 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                       value={formatCPF(companionCpf)}
                       onChange={(e) => setCompanionCpf(e.target.value.replace(/\D/g, ''))}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-mono focus:outline-emerald-600"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                      <span>Ponto / Local de Embarque do Acompanhante</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Mesmo ponto do paciente ou endereço específico"
+                      value={companionAddress}
+                      onChange={(e) => setCompanionAddress(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-emerald-600"
                     />
                   </div>
                 </div>
