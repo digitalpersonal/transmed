@@ -221,8 +221,8 @@ export const PrintTicketModal: React.FC<PrintTicketModalProps> = ({
           <div className="border-t-2 border-dashed border-slate-400 pt-6 mt-6 print:pt-3 print:mt-3 space-y-5 print:space-y-2">
             <div className="grid grid-cols-2 gap-4 print:gap-2 text-sm print:text-xs bg-slate-50 p-4 print:p-2 rounded-lg border border-slate-200">
               <div>
-                <span className="font-bold text-slate-700 block text-xs print:text-[10px] uppercase">CPF do Paciente:</span>
-                <span className="font-mono font-black text-slate-900 text-base print:text-xs">{passenger.patientCpf}</span>
+                <span className="font-bold text-slate-700 block text-xs print:text-[10px] uppercase">Nome do Paciente:</span>
+                <span className="font-black text-slate-900 text-base print:text-xs">{passenger.patientName}</span>
               </div>
               <div className="text-right">
                 <span className="font-bold text-slate-700 block text-xs print:text-[10px] uppercase">Data e Hora da Emissão:</span>

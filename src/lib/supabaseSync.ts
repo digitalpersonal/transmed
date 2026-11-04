@@ -29,15 +29,39 @@ export async function seedAllFirestore() {
   }
 }
 
-export async function clearTripsAndPatientsFirestore() {
+export async function clearTripsAndPatientsFirestore(tripsOnly = false) {
   try {
-    const { error: errorTrips } = await supabase.from('trips').delete().neq('id', 'dummy-unmatched-id');
-    const { error: errorPatients } = await supabase.from('patients').delete().neq('id', 'dummy-unmatched-id');
-    if (errorTrips) throw errorTrips;
-    if (errorPatients) throw errorPatients;
+    // Reset local deleted tracking first to avoid conflicts
+    if (tripsOnly) {
+      saveTrips([]);
+      safeSetItem('tfd_deleted_trips_v1', JSON.stringify([]));
+      const { error } = await supabase.from('trips').delete().filter('id', 'not.is', null);
+      if (error) await supabase.from('trips').delete().neq('id', 'dummy-unmatched-id');
+    } else {
+      saveTrips([]);
+      savePatients([]);
+      safeSetItem('tfd_deleted_trips_v1', JSON.stringify([]));
+      const { error: errorTrips } = await supabase.from('trips').delete().filter('id', 'not.is', null);
+      const { error: errorPatients } = await supabase.from('patients').delete().filter('id', 'not.is', null);
+      if (errorTrips) await supabase.from('trips').delete().neq('id', 'dummy-unmatched-id');
+      if (errorPatients) await supabase.from('patients').delete().neq('id', 'dummy-unmatched-id');
+    }
+
+    console.log('Database cleared successfully');
   } catch (error: any) {
     console.error('Error clearing data in Supabase:', error);
     throw error;
+  }
+}
+
+// Helper for internal use in clearTripsAndPatientsFirestore
+function safeSetItem(key: string, value: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+    }
+  } catch (e) {
+    console.warn(`localStorage write error for key ${key}`, e);
   }
 }
 
@@ -215,6 +239,11 @@ export function subscribeToDestinations(callback: (destinations: DestinationHosp
 
 export async function upsertDestinationFirestore(dest: DestinationHospital) {
   const { error } = await supabase.from('destinations').upsert(dest);
+  if (error) throw error;
+}
+
+export async function deleteDestinationFirestore(destId: string) {
+  const { error } = await supabase.from('destinations').delete().eq('id', destId);
   if (error) throw error;
 }
 

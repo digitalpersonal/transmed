@@ -145,7 +145,9 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
     // Final deduplication layer to ensure UI is clean
     const uniqueMap = new Map<string, DestinationHospital>();
     filtered.forEach(d => {
-      const key = `${normalizeHospitalName(d.name)}_${d.city.toLowerCase().trim()}`;
+      const cleanHosp = normalizeHospitalName(d.name);
+      const cleanCity = d.city.toUpperCase().trim();
+      const key = `${cleanHosp}_${cleanCity}`;
       if (!uniqueMap.has(key)) {
         uniqueMap.set(key, d);
       }

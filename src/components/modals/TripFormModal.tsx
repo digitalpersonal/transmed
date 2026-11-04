@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Calendar, Clock, MapPin, Bus, Save, Plus, AlertCircle } from 'lucide-react';
 import { DestinationHospital, DestinationCity, Trip, Vehicle, Driver, ensurePassengerArray } from '../../types';
-import { formatPlate, generateTripCode, getVehicleTypeLabel } from '../../utils/formatters';
+import { formatPlate, generateTripCode, getVehicleTypeLabel, normalizeHospitalName } from '../../utils/formatters';
 
 interface TripFormModalProps {
   trip?: Trip | null;
@@ -43,50 +43,32 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // 1. Gera lista completa e unificada de TODAS as CIDADES cadastradas
+  // 1. Gera lista completa e unificada de TODAS as CIDADES cadastradas (ESTRITAMENTE)
   const allAvailableCities = useMemo(() => {
-    const cityMap = new Map<string, { label: string; cityOnly: string; state: string }>();
-
-    // Cidades do cadastro de cidades
-    (cities || []).forEach((c) => {
-      const cityClean = c.cityName.trim();
-      const stateClean = (c.state || 'SP').trim();
-      const key = `${cityClean.toUpperCase()}-${stateClean.toUpperCase()}`;
-      if (!cityMap.has(key)) {
-        cityMap.set(key, {
-          label: `${cityClean} - ${stateClean}`,
-          cityOnly: cityClean,
-          state: stateClean,
-        });
-      }
-    });
-
-    // Cidades existentes em unidades/hospitais de referência
-    (destinations || []).forEach((d) => {
-      const cityClean = d.city.trim();
-      const stateClean = (d.state || 'SP').trim();
-      const key = `${cityClean.toUpperCase()}-${stateClean.toUpperCase()}`;
-      if (!cityMap.has(key)) {
-        cityMap.set(key, {
-          label: `${cityClean} - ${stateClean}`,
-          cityOnly: cityClean,
-          state: stateClean,
-        });
-      }
-    });
-
-    return Array.from(cityMap.values()).sort((a, b) =>
-      a.cityOnly.localeCompare(b.cityOnly, 'pt-BR')
+    const sorted = [...(cities || [])].sort((a, b) =>
+      a.cityName.localeCompare(b.cityName, 'pt-BR')
     );
-  }, [cities, destinations]);
+    return sorted.map(c => ({
+      label: `${c.cityName.trim().toUpperCase()} - ${(c.state || 'SP').trim().toUpperCase()}`,
+      cityOnly: c.cityName.trim().toUpperCase(),
+      state: (c.state || 'SP').trim().toUpperCase(),
+    }));
+  }, [cities]);
 
   // 2. Gera lista completa de HOSPITAISE CLÍNICAS unificando destinations e mainHospitals das cidades
   const allAvailableHospitals = useMemo(() => {
     const hospitalMap = new Map<string, DestinationHospital>();
 
-    // Hospitais cadastrados em destinations
+    // Hospitais cadastrados em destinations (with deduplication)
     (destinations || []).forEach((d) => {
-      hospitalMap.set(d.id, d);
+      const cleanName = normalizeHospitalName(d.name);
+      const cleanCity = d.city.trim().toUpperCase();
+      const key = `${cleanName}_${cleanCity}`;
+      
+      // Keep the one already in the map if it's there, but ensure consistency
+      if (!Array.from(hospitalMap.values()).some(h => normalizeHospitalName(h.name) === cleanName && h.city.trim().toUpperCase() === cleanCity)) {
+        hospitalMap.set(d.id, d);
+      }
     });
 
     // Hospitais cadastrados como hospitais principais das cidades
@@ -94,12 +76,14 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
       (c.mainHospitals || []).forEach((hName, idx) => {
         const cleanHName = hName.trim();
         if (!cleanHName) return;
+        const normalizedHName = normalizeHospitalName(cleanHName);
+        const cityUpper = c.cityName.trim().toUpperCase();
 
         // Verifica se já existe um hospital com mesmo nome na mesma cidade
         const exists = Array.from(hospitalMap.values()).some(
           (h) =>
-            h.name.toLowerCase().trim() === cleanHName.toLowerCase() &&
-            h.city.toLowerCase().trim() === c.cityName.toLowerCase().trim()
+            normalizeHospitalName(h.name) === normalizedHName &&
+            h.city.trim().toUpperCase() === cityUpper
         );
 
         if (!exists) {
@@ -117,29 +101,8 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
       });
     });
 
-    // Adiciona dinamicamente o hospital cadastrado na viagem (se existir e não estiver mapeado)
-    if (trip?.destinationHospital) {
-      const cleanHName = trip.destinationHospital.trim();
-      const cleanCityName = trip.destinationCity?.split('-')[0].trim() || 'Destino';
-      const exists = Array.from(hospitalMap.values()).some(
-        (h) => h.name.toLowerCase().trim() === cleanHName.toLowerCase()
-      );
-      if (!exists && cleanHName) {
-        const genId = `hosp-dyn-${cleanHName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-        hospitalMap.set(genId, {
-          id: genId,
-          name: cleanHName,
-          city: cleanCityName,
-          state: 'MG',
-          address: `Unidade de Atendimento - ${cleanHName}`,
-          phone: '',
-          specialties: [],
-        });
-      }
-    }
-
     return Array.from(hospitalMap.values());
-  }, [destinations, cities, trip?.destinationHospital, trip?.destinationCity]);
+  }, [destinations, cities]);
 
   // 3. Filtra os hospitais pela cidade de destino selecionada
   const filteredHospitals = useMemo(() => {
@@ -406,15 +369,11 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
                       {c.label}
                     </option>
                   ))}
-                  <option value="Outra Cidade">Outra Cidade (Digitação Livre)</option>
                 </select>
-                {formData.destinationCity === 'Outra Cidade' && (
-                  <input
-                    type="text"
-                    placeholder="Digite o nome da cidade de destino..."
-                    onChange={(e) => setFormData({ ...formData, destinationCity: e.target.value })}
-                    className="w-full mt-2 px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900"
-                  />
+                {formData.destinationCity && !allAvailableCities.some(c => c.label === formData.destinationCity) && (
+                  <p className="text-amber-600 text-[10px] mt-1 font-bold">
+                    Atenção: Esta cidade não consta no cadastro oficial. Recomendamos selecionar uma cidade da lista.
+                  </p>
                 )}
                 {errors.destinationCity && <p className="text-rose-500 text-[11px] mt-0.5">{errors.destinationCity}</p>}
               </div>

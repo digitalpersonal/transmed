@@ -165,6 +165,21 @@ export function clearTrips(): void {
   }
 }
 
+export function clearAllPersistentData(): void {
+  try {
+    Object.values(STORAGE_KEYS).forEach(key => {
+      if (key === STORAGE_KEYS.USERS || key === STORAGE_KEYS.CONFIG) return;
+      window.localStorage.removeItem(key);
+    });
+    // Restore defaults for essentials
+    safeSetItem(STORAGE_KEYS.VEHICLES, JSON.stringify(INITIAL_VEHICLES));
+    safeSetItem(STORAGE_KEYS.DRIVERS, JSON.stringify(INITIAL_DRIVERS));
+    safeSetItem(STORAGE_KEYS.DESTINATION_CITIES, JSON.stringify(INITIAL_DESTINATION_CITIES));
+  } catch (e) {
+    console.error('Error clearing all persistent data', e);
+  }
+}
+
 export function getStoredDestinations(): DestinationHospital[] {
   try {
     const data = safeGetItem(STORAGE_KEYS.DESTINATIONS);
@@ -180,9 +195,15 @@ export function getStoredDestinations(): DestinationHospital[] {
     const uniqueMap = new Map<string, DestinationHospital>();
     destinationsList.forEach(d => {
       if (!d.name) return;
-      const key = `${normalizeHospitalName(d.name)}_${(d.city || '').toLowerCase().trim()}`;
+      const cleanHosp = normalizeHospitalName(d.name);
+      const cleanCity = (d.city || '').toLowerCase().trim();
+      const key = `${cleanHosp}_${cleanCity}`;
       if (!uniqueMap.has(key)) {
-        uniqueMap.set(key, d);
+        uniqueMap.set(key, {
+          ...d,
+          name: d.name.trim(),
+          city: d.city.trim()
+        });
       }
     });
     destinationsList = Array.from(uniqueMap.values());
@@ -230,7 +251,7 @@ export function saveDestinations(destinations: DestinationHospital[]): void {
     const uniqueMap = new Map<string, DestinationHospital>();
     destinations.forEach(d => {
       if (!d.name) return;
-      const key = `${normalizeHospitalName(d.name)}_${(d.city || '').toLowerCase().trim()}`;
+      const key = `${normalizeHospitalName(d.name)}_${normalizeHospitalName(d.city || '')}`;
       if (!uniqueMap.has(key)) {
         uniqueMap.set(key, d);
       }

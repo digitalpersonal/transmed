@@ -170,11 +170,25 @@ export function normalizeHospitalName(name: string): string {
     .toUpperCase();
 
   // Remove common prefixes used in imported lists (R:, AV., HOSPITAL, etc.)
-  // We use a more flexible regex to catch various patterns
-  normalized = normalized.replace(/^(R[:\s]|AV[\.\s]|RUA\s|AVENIDA\s|HOSPITAL\s|CLINICA\s|HOSP\s|UNIDADE\s|POSTO\s)/g, '');
+  // Even more aggressive patterns
+  normalized = normalized.replace(/^(R[\.\:\s]|AV[\.\:\s]|RUA\s|AVENIDA\s|HOSPITAL\s|CLINICA\s|HOSP\s|UNIDADE\s|POSTO\s|UBS\s|DR\s|DR\.\s|DRA\s|DRA\.\s|CENTRO\s|ATENDIMENTO\s|REFERENCIA\s)+/g, '');
   
-  // Replace punctuation and special characters with space to avoid variations like "Santa Casa-SP" vs "Santa Casa SP"
+  // Replace punctuation and special characters with space
   normalized = normalized.replace(/[^A-Z0-9]/g, ' ');
+  
+  // Normalize Roman numerals at the end to numbers
+  normalized = normalized.replace(/\sII$/g, ' 2');
+  normalized = normalized.replace(/\sIII$/g, ' 3');
+  normalized = normalized.replace(/\sIV$/g, ' 4');
+  normalized = normalized.replace(/\sV$/g, ' 5');
+  
+  // Normalize address-like suffixes (numbers, complements) - if it's too long, keep only first 3 words
+  const words = normalized.split(' ').filter(w => w.length > 1);
+  if (words.length > 4) {
+    // If it looks like an address (has numbers), try to keep only the name part
+    const namePart = words.slice(0, 3).join(' ');
+    return namePart.trim();
+  }
   
   // Collapse multiple spaces and trim
   return normalized.replace(/\s+/g, ' ').trim();

@@ -36,7 +36,8 @@ import {
   getDrivers,
   saveDrivers,
   saveDestinations,
-  clearTrips
+  clearTrips,
+  clearAllPersistentData
 } from './utils/storage';
 import { ExcelCapturedRow } from './utils/excel';
 import { 
@@ -55,7 +56,7 @@ import {
   subscribeToConfig, updateConfigFirestore,
   subscribeToDestinationCities, updateDestinationCitiesFirestore,
   seedAllFirestore, clearTripsAndPatientsFirestore,
-  subscribeToUsers
+  subscribeToUsers, deleteDestinationFirestore
 } from './lib/supabaseSync';
 import { auth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, sendPasswordResetEmail } from './lib/supabase';
 import { Navbar, ActiveTab } from './components/Navbar';
@@ -501,11 +502,20 @@ export default function App() {
       const parsedPat = newPatients[idx];
       if (!parsedPat) return;
 
-      const destCity = row.cidadeDestino || row.destino || 'Campinas';
-      const destHospital = row.destino || destCity;
+      const destCity = (row.cidadeDestino || row.destino || 'Campinas').trim();
+      const destHospital = (row.destino || destCity).trim();
+
+      // Validate City against official list
+      const officialCity = localCities.find(c => 
+        c.cityName.toUpperCase() === destCity.toUpperCase() || 
+        destCity.toUpperCase().includes(c.cityName.toUpperCase())
+      );
+      
+      const validatedCityName = officialCity ? officialCity.cityName : destCity;
+      const validatedHospitalName = destHospital;
 
       // Ensure Destination & City exists (runs for all rows)
-      getOrAddDestination(destHospital, destCity);
+      getOrAddDestination(validatedHospitalName, validatedCityName);
 
       // Find or register vehicle & driver (runs for all rows)
       const targetVehicle = getOrAddVehicle(row.veiculo || '');
@@ -553,7 +563,7 @@ export default function App() {
       
       // Check if trip already exists for this destination + date + vehicle
       let targetTrip = updatedTrips.find(t => 
-        t.destinationCity.toLowerCase().includes(destCity.toLowerCase()) &&
+        t.destinationCity.toLowerCase().includes(validatedCityName.toLowerCase()) &&
         t.status === 'scheduled' &&
         t.departureDate === tripDate &&
         t.vehicleId === targetVehicle.id
@@ -577,8 +587,8 @@ export default function App() {
         companionAddress: existingPat.companionAddress,
         companionKinship: existingPat.companionKinship,
         destinationId: 'dest-auto',
-        destinationName: destHospital,
-        destinationCity: destCity,
+        destinationName: validatedHospitalName,
+        destinationCity: validatedCityName,
         appointmentTime: row.horarioProcedimento || existingPat.procedureTime || '08:00',
         appointmentType: existingPat.condition || 'Consulta Médica',
         status: 'confirmed',
@@ -591,8 +601,8 @@ export default function App() {
         targetTrip = {
           id: newTripId,
           code: newTripCode,
-          destinationCity: destCity,
-          destinationHospital: destHospital,
+          destinationCity: validatedCityName,
+          destinationHospital: validatedHospitalName,
           departureDate: tripDate,
           departureTime: row.horarioSaida || '05:30',
           estimatedReturnDate: tripDate,
@@ -616,7 +626,7 @@ export default function App() {
           targetTrip = {
             ...targetTrip,
             passengers: updatedTripPassengers,
-            destinationHospital: targetTrip.destinationHospital || destHospital,
+            destinationHospital: targetTrip.destinationHospital || validatedHospitalName,
             status: 'scheduled', // Keep it active if newly imported passenger is added
           };
           updatedTrips = updatedTrips.map(t => t.id === targetTrip!.id ? targetTrip! : t);
@@ -915,18 +925,65 @@ export default function App() {
 
   const handleClearAllData = async () => {
     try {
+      // 1. Clear local state immediately for UX
       setTrips([]);
-      saveTrips([]);
       setPatients([]);
-      savePatients([]);
-      await clearTripsAndPatientsFirestore();
-      showToast('Todas as viagens e pacientes foram apagados com sucesso!', 'success');
+      
+      // 2. Clear local storage completely
+      clearAllPersistentData();
+      
+      // 3. Clear Supabase
+      await clearTripsAndPatientsFirestore(false);
+      
+      showToast('Sistema resetado! Todas as viagens e pacientes foram apagados com sucesso.', 'success');
     } catch (error: any) {
-      if (error?.message === 'QUOTA_EXCEEDED') {
-        showToast('Limite diário gratuito do banco de dados (Firestore) atingido. Os dados foram limpos localmente, mas a nuvem só resetará amanhã.', 'error');
+      console.error('Clear data error:', error);
+      showToast('Erro ao limpar dados na nuvem.', 'error');
+    }
+  };
+
+  const handleClearTripsOnly = async () => {
+    try {
+      setTrips([]);
+      clearTrips();
+      await clearTripsAndPatientsFirestore(true);
+      showToast('Todas as viagens e agendamentos (BPAs) foram removidos. O cadastro de pacientes foi mantido.', 'success');
+    } catch (error: any) {
+      console.error('Clear trips error:', error);
+      showToast('Erro ao limpar viagens na nuvem.', 'error');
+    }
+  };
+
+  const handleCleanupDestinations = async () => {
+    const uniqueMap = new Map<string, DestinationHospital>();
+    const duplicatesToRemove: string[] = [];
+
+    destinations.forEach(d => {
+      const cleanHosp = normalizeHospitalName(d.name);
+      const cleanCity = (d.city || '').toLowerCase().trim();
+      const key = `${cleanHosp}_${cleanCity}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, d);
       } else {
-        showToast('Erro ao limpar nuvem. Dados locais foram limpos.', 'error');
+        duplicatesToRemove.push(d.id);
       }
+    });
+
+    if (duplicatesToRemove.length === 0) {
+      showToast('Nenhum hospital duplicado encontrado.', 'info');
+      return;
+    }
+
+    const cleaned = Array.from(uniqueMap.values());
+    setDestinations(cleaned);
+    saveDestinations(cleaned);
+
+    try {
+      await Promise.all(duplicatesToRemove.map(id => deleteDestinationFirestore(id)));
+      showToast(`${duplicatesToRemove.length} hospitais duplicados foram removidos com sucesso!`, 'success');
+    } catch (error) {
+      console.error('Cleanup error:', error);
+      showToast('Hospitais limpos localmente. Alguns erros na nuvem.', 'info');
     }
   };
 
@@ -1457,7 +1514,9 @@ export default function App() {
       {isExcelImportModalOpen && (
         <ExcelImportModal
           onImportPatients={handleImportPatientsFromExcel}
-          onClearAllData={handleClearAllData}
+          onClearAllData={isAdmin ? handleClearAllData : undefined}
+          onClearTripsOnly={isAdmin ? handleClearTripsOnly : undefined}
+          onCleanupDestinations={handleCleanupDestinations}
           onClose={() => setIsExcelImportModalOpen(false)}
         />
       )}

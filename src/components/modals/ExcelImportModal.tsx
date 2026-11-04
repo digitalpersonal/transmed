@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Upload, FileSpreadsheet, Download, CheckCircle2, AlertCircle, Trash2, ArrowRight, Clock, User, Phone, MapPin, Bus, Check, Info } from 'lucide-react';
+import { X, Upload, FileSpreadsheet, Download, CheckCircle2, AlertCircle, Trash2, ArrowRight, Clock, User, Phone, MapPin, Bus, Check, Info, RotateCcw, Trash } from 'lucide-react';
 import { Patient } from '../../types';
 import { downloadSamplePatientTemplate, parseExcelCapturedRows, ExcelCapturedRow } from '../../utils/excel';
 import { formatCPF, formatSUS, formatPhone, formatDateBR } from '../../utils/formatters';
@@ -7,12 +7,16 @@ import { formatCPF, formatSUS, formatPhone, formatDateBR } from '../../utils/for
 interface ExcelImportModalProps {
   onImportPatients: (newPatients: Patient[], capturedRows?: ExcelCapturedRow[]) => void;
   onClearAllData?: () => void;
+  onClearTripsOnly?: () => void;
+  onCleanupDestinations?: () => void;
   onClose: () => void;
 }
 
 export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   onImportPatients,
   onClearAllData,
+  onClearTripsOnly,
+  onCleanupDestinations,
   onClose,
 }) => {
   const [parsedList, setParsedList] = useState<Patient[]>([]);
@@ -22,6 +26,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'preview' | 'columns_info'>('preview');
   const [confirmClear, setConfirmClear] = useState<boolean>(false);
+  const [confirmClearTrips, setConfirmClearTrips] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const captureColumns = [
@@ -177,32 +182,78 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               {parsedList.length === 0 ? (
                 <div className="space-y-4">
                   {/* Zerar Viagens e BPAs antes de importar */}
-                  {onClearAllData && (
-                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-3">
-                      <div>
-                        <h5 className="font-bold text-rose-900 text-xs">Preparar para Produção</h5>
-                        <p className="text-[11px] text-rose-700">Deseja zerar todas as viagens e pacientes anteriores antes de importar a nova planilha?</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {onClearTripsOnly && (
+                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col justify-between gap-3 shadow-xs">
+                        <div>
+                          <h5 className="font-bold text-amber-900 text-xs uppercase tracking-wider">1. Limpar Viagens / BPA</h5>
+                          <p className="text-[11px] text-amber-700">Excluir apenas viagens e agendamentos, mantendo os pacientes.</p>
+                        </div>
+                        <div>
+                          {confirmClearTrips ? (
+                            <div className="flex items-center gap-2 bg-white p-1 rounded border border-amber-300">
+                              <span className="text-[10px] text-amber-800 font-bold px-1">Limpar?</span>
+                              <button type="button" onClick={() => setConfirmClearTrips(false)} className="px-2 py-1 text-[10px] text-slate-600 bg-slate-100 rounded hover:bg-slate-200 cursor-pointer">Não</button>
+                              <button type="button" onClick={() => { onClearTripsOnly(); setConfirmClearTrips(false); }} className="px-2 py-1 text-[10px] text-white bg-amber-600 rounded hover:bg-amber-700 font-bold cursor-pointer">Sim</button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmClearTrips(true)}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[10px] shadow-sm cursor-pointer w-full justify-center"
+                            >
+                              <Trash className="w-3 h-3" />
+                              Zerar Viagens e BPA
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        {confirmClear ? (
-                          <div className="flex items-center gap-2 bg-white p-1 rounded border border-rose-300">
-                            <span className="text-[11px] text-rose-800 font-bold px-1">Tem certeza?</span>
-                            <button type="button" onClick={() => setConfirmClear(false)} className="px-2 py-1 text-xs text-slate-600 bg-slate-100 rounded hover:bg-slate-200 cursor-pointer">Não</button>
-                            <button type="button" onClick={() => { onClearAllData(); setConfirmClear(false); }} className="px-2 py-1 text-xs text-white bg-rose-600 rounded hover:bg-rose-700 font-bold cursor-pointer">Sim, Zerar</button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setConfirmClear(true)}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs shadow-sm cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Zerar Viagens e BPAs Atuais
-                          </button>
-                        )}
+                    )}
+
+                    {onClearAllData && (
+                      <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex flex-col justify-between gap-3 shadow-xs">
+                        <div>
+                          <h5 className="font-bold text-rose-900 text-xs uppercase tracking-wider">2. Resetar p/ Produção</h5>
+                          <p className="text-[11px] text-rose-700">Zerar TUDO (Viagens + Pacientes) para iniciar o sistema.</p>
+                        </div>
+                        <div>
+                          {confirmClear ? (
+                            <div className="flex items-center gap-2 bg-white p-1 rounded border border-rose-300">
+                              <span className="text-[10px] text-rose-800 font-bold px-1">Certeza?</span>
+                              <button type="button" onClick={() => setConfirmClear(false)} className="px-2 py-1 text-[10px] text-slate-600 bg-slate-100 rounded hover:bg-slate-200 cursor-pointer">Não</button>
+                              <button type="button" onClick={() => { onClearAllData(); setConfirmClear(false); }} className="px-2 py-1 text-[10px] text-white bg-rose-600 rounded hover:bg-rose-700 font-bold cursor-pointer">Sim</button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmClear(true)}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-[10px] shadow-sm cursor-pointer w-full justify-center"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Zerar Sistema Completo
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                    {onCleanupDestinations && (
+                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-col justify-between gap-3 shadow-xs">
+                        <div>
+                          <h5 className="font-bold text-emerald-900 text-xs uppercase tracking-wider">3. Limpar Duplicados</h5>
+                          <p className="text-[11px] text-emerald-700">Remover hospitais com nomes ou endereços repetidos.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={onCleanupDestinations}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] shadow-sm cursor-pointer w-full justify-center"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          Limpar Hospitais Repetidos
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Visual Preview of the Sequence */}
                   <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200">
