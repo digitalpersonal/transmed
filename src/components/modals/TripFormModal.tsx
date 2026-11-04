@@ -55,27 +55,25 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
     }));
   }, [cities]);
 
-  // 2. Gera lista completa de HOSPITAISE CLÍNICAS unificando destinations e mainHospitals das cidades
+  // 2. Gera lista completa de HOSPITAIS E CLÍNICAS unificando destinations e mainHospitals das cidades
   const allAvailableHospitals = useMemo(() => {
-    const hospitalMap = new Map<string, DestinationHospital>();
+    const uniqueList: DestinationHospital[] = [];
+    const seenKeys = new Set<string>();
 
     // Hospitais cadastrados em destinations (with deduplication)
     (destinations || []).forEach((d) => {
       if (!d.name) return;
       const cleanName = normalizeHospitalName(d.name);
       const cleanCity = (d.city || '').trim().toUpperCase();
+      const key = `${cleanName}_${cleanCity}`;
       
-      const exists = Array.from(hospitalMap.values()).some(h => 
-        normalizeHospitalName(h.name) === cleanName && 
-        (h.city || '').trim().toUpperCase() === cleanCity
-      );
-
-      if (!exists) {
-        hospitalMap.set(d.id, {
+      if (!seenKeys.has(key)) {
+        uniqueList.push({
           ...d,
           name: d.name.trim(),
           city: d.city.trim()
         });
+        seenKeys.add(key);
       }
     });
 
@@ -86,17 +84,11 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
         if (!cleanHName) return;
         const normalizedHName = normalizeHospitalName(cleanHName);
         const cityUpper = c.cityName.trim().toUpperCase();
+        const key = `${normalizedHName}_${cityUpper}`;
 
-        // Verifica se já existe um hospital com mesmo nome na mesma cidade
-        const exists = Array.from(hospitalMap.values()).some(
-          (h) =>
-            normalizeHospitalName(h.name) === normalizedHName &&
-            h.city.trim().toUpperCase() === cityUpper
-        );
-
-        if (!exists) {
+        if (!seenKeys.has(key)) {
           const genId = `hosp-${c.cityName.toLowerCase().replace(/[^a-z0-9]/g, '')}-${idx}`;
-          hospitalMap.set(genId, {
+          uniqueList.push({
             id: genId,
             name: cleanHName,
             city: c.cityName,
@@ -105,11 +97,12 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
             phone: c.contactPhone || '',
             specialties: c.specialties || [],
           });
+          seenKeys.add(key);
         }
       });
     });
 
-    return Array.from(hospitalMap.values());
+    return uniqueList.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   }, [destinations, cities]);
 
   // 3. Filtra os hospitais pela cidade de destino selecionada

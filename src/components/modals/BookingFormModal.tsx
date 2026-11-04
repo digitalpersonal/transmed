@@ -139,26 +139,26 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
       if (cleanTripCity && d.city.toLowerCase().trim() === cleanTripCity) return true;
       
       // Default fallback to keep list reasonable
-      return destinations.length <= 15;
+      return destinations.length <= 25; // Increased fallback to allow more options if list is manageable
     });
 
     // Final deduplication layer to ensure UI is clean
-    const uniqueMap = new Map<string, DestinationHospital>();
+    const uniqueList: DestinationHospital[] = [];
+    const seenKeys = new Set<string>();
+
     filtered.forEach(d => {
       const cleanHosp = normalizeHospitalName(d.name);
       const cleanCity = (d.city || '').toUpperCase().trim();
       const key = `${cleanHosp}_${cleanCity}`;
       
-      const alreadyExists = Array.from(uniqueMap.values()).some(h => 
-        normalizeHospitalName(h.name) === cleanHosp && 
-        (h.city || '').toUpperCase().trim() === cleanCity
-      );
-
-      if (!alreadyExists) {
-        uniqueMap.set(d.id, d);
+      if (!seenKeys.has(key)) {
+        uniqueList.push(d);
+        seenKeys.add(key);
       }
     });
-    return Array.from(uniqueMap.values());
+
+    // Sort by name for better UX
+    return uniqueList.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   }, [destinations, selectedTrip]);
 
   // When trip is selected, pick default destination smartly

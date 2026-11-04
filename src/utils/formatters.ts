@@ -178,7 +178,8 @@ export function normalizeHospitalName(name: string): string {
     normalized = normalized.trim().replace(prefixRegex, '').trim();
   }
   
-  // Remove " (CITY NAME)" suffix if present
+  // Remove " (CITY NAME)" suffix if present (case insensitive and handle poços de caldas)
+  normalized = normalized.replace(/\s\((POC|ALF|CAMP|SAO|S\.P|S\.J|MG|SP|BH|DF).*\)$/i, '').trim();
   normalized = normalized.replace(/\s\(.*\)$/, '').trim();
   
   // Replace punctuation and special characters with space
@@ -198,6 +199,7 @@ export function normalizeHospitalName(name: string): string {
   if (normalized.includes('VICTOR MARCHESI 99')) return 'R VICTOR MARCHESI 99';
   if (normalized.includes('NARCISO FERREIRA') && normalized.includes('145')) return 'R NARCISO FERREIRA 145';
   if (normalized.includes('RIO GRANDE SUL') && normalized.includes('1402')) return 'R RIO GRANDE DO SUL 1402';
+  if (normalized.includes('SANTA CASA') && (normalized.includes('POC') || normalized.includes('CALDAS'))) return 'SANTA CASA DE POCOS DE CALDAS';
 
   return normalized;
 }

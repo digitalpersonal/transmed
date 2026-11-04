@@ -9,6 +9,7 @@ interface ExcelImportModalProps {
   onClearAllData?: () => void;
   onClearTripsOnly?: () => void;
   onCleanupDestinations?: () => void;
+  onCleanupCities?: () => void;
   onClose: () => void;
 }
 
@@ -17,6 +18,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   onClearAllData,
   onClearTripsOnly,
   onCleanupDestinations,
+  onCleanupCities,
   onClose,
 }) => {
   const [parsedList, setParsedList] = useState<Patient[]>([]);
@@ -243,14 +245,27 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                           <h5 className="font-bold text-emerald-900 text-xs uppercase tracking-wider">3. Limpar Duplicados</h5>
                           <p className="text-[11px] text-emerald-700">Remover hospitais com nomes ou endereços repetidos.</p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={onCleanupDestinations}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] shadow-sm cursor-pointer w-full justify-center"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          Limpar Hospitais Repetidos
-                        </button>
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={onCleanupDestinations}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] shadow-sm cursor-pointer w-full justify-center"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Limpar Hospitais Repetidos
+                          </button>
+                          
+                          {onCleanupCities && (
+                            <button
+                              type="button"
+                              onClick={onCleanupCities}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-bold text-[10px] shadow-sm cursor-pointer w-full justify-center"
+                            >
+                              <MapPin className="w-3 h-3" />
+                              Limpar Cidades (Manter 45)
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

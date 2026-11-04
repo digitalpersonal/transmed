@@ -1009,16 +1009,34 @@ export default function App() {
 
     try {
       await Promise.all(duplicatesToRemove.map(id => deleteDestinationFirestore(id)));
-      // Re-fetch to ensure local state is perfectly synced after deletion
-      const { data } = await supabase.from('destinations').select('*');
-      if (data) {
-        setDestinations(data);
-        saveDestinations(data);
-      }
       showToast(`${duplicatesToRemove.length} hospitais duplicados foram removidos com sucesso!`, 'success');
     } catch (error) {
       console.error('Cleanup error:', error);
       showToast('Hospitais limpos localmente. Alguns erros na nuvem.', 'info');
+    }
+  };
+
+  const handleCleanupCities = async () => {
+    const officialNames = new Set(INITIAL_DESTINATION_CITIES.map(c => c.cityName.toUpperCase().trim()));
+    const initialCount = destinationCities.length;
+    
+    // We keep only the 45 official ones
+    const updated = INITIAL_DESTINATION_CITIES;
+    
+    if (updated.length === initialCount) {
+      showToast('A lista de cidades já está limpa e contém apenas as 45 oficiais.', 'info');
+      return;
+    }
+
+    setDestinationCities(updated);
+    saveDestinationCities(updated);
+
+    try {
+      await updateDestinationCitiesFirestore(updated);
+      showToast(`Cidades limpas! ${initialCount - updated.length} cidades não oficiais foram removidas.`, 'success');
+    } catch (error) {
+      console.error('Cleanup cities error:', error);
+      showToast('Cidades limpas localmente.', 'info');
     }
   };
 
@@ -1556,6 +1574,7 @@ export default function App() {
           onClearAllData={isAdmin ? handleClearAllData : undefined}
           onClearTripsOnly={isAdmin ? handleClearTripsOnly : undefined}
           onCleanupDestinations={handleCleanupDestinations}
+          onCleanupCities={handleCleanupCities}
           onClose={() => setIsExcelImportModalOpen(false)}
         />
       )}
