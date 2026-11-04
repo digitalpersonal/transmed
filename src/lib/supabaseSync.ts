@@ -97,17 +97,23 @@ function safeSetItem(key: string, value: string): void {
 export function subscribeToPatients(callback: (patients: Patient[]) => void) {
   const fetchPatients = async () => {
     const { data, error } = await supabase.from('patients').select('*').limit(10000);
+    const local = getStoredPatients();
+    
     if (error) {
       console.warn('Supabase patients error, using local storage:', error);
-      callback(getStoredPatients());
+      callback(local);
     } else {
-      const list = data || [];
-      if (list.length === 0) {
-        callback([]);
-        return;
+      const remote = data || [];
+      if (remote.length === 0 && local.length > 0) {
+        // Detect sync gap: push local to remote
+        supabase.from('patients').upsert(local).then(({error: syncErr}) => {
+          if (syncErr) console.error('Auto-sync patients error:', syncErr);
+        });
+        callback(local);
+      } else {
+        savePatients(remote);
+        callback(remote);
       }
-      savePatients(list);
-      callback(list);
     }
   };
 
@@ -138,16 +144,23 @@ export async function deletePatientFirestore(patientId: string) {
 export function subscribeToVehicles(callback: (vehicles: Vehicle[]) => void) {
   const fetchVehicles = async () => {
     const { data, error } = await supabase.from('vehicles').select('*').limit(10000);
+    const local = getStoredVehicles();
+
     if (error) {
-      callback(getStoredVehicles());
+      callback(local);
     } else {
-      const list = data || [];
-      if (list.length === 0) {
+      const remote = data || [];
+      if (remote.length === 0 && local.length > INITIAL_VEHICLES.length) {
+        supabase.from('vehicles').upsert(local).then(({error: syncErr}) => {
+          if (syncErr) console.error('Auto-sync vehicles error:', syncErr);
+        });
+        callback(local);
+      } else if (remote.length === 0 && local.length === 0) {
         callback([]);
-        return;
+      } else {
+        saveVehicles(remote);
+        callback(remote);
       }
-      saveVehicles(list);
-      callback(list);
     }
   };
 
@@ -178,16 +191,23 @@ export async function deleteVehicleFirestore(vehicleId: string) {
 export function subscribeToDrivers(callback: (drivers: Driver[]) => void) {
   const fetchDrivers = async () => {
     const { data, error } = await supabase.from('drivers').select('*').limit(10000);
+    const local = getStoredDrivers();
+
     if (error) {
-      callback(getStoredDrivers());
+      callback(local);
     } else {
-      const list = data || [];
-      if (list.length === 0) {
+      const remote = data || [];
+      if (remote.length === 0 && local.length > INITIAL_DRIVERS.length) {
+        supabase.from('drivers').upsert(local).then(({error: syncErr}) => {
+          if (syncErr) console.error('Auto-sync drivers error:', syncErr);
+        });
+        callback(local);
+      } else if (remote.length === 0 && local.length === 0) {
         callback([]);
-        return;
+      } else {
+        saveDrivers(remote);
+        callback(remote);
       }
-      saveDrivers(list);
-      callback(list);
     }
   };
 
@@ -218,16 +238,23 @@ export async function deleteDriverFirestore(driverId: string) {
 export function subscribeToDestinations(callback: (destinations: DestinationHospital[]) => void) {
   const fetchDestinations = async () => {
     const { data, error } = await supabase.from('destinations').select('*').limit(10000);
+    const local = getStoredDestinations();
+
     if (error) {
-      callback(getStoredDestinations());
+      callback(local);
     } else {
-      const list = data || [];
-      if (list.length === 0) {
+      const remote = data || [];
+      if (remote.length === 0 && local.length > INITIAL_DESTINATIONS.length) {
+        supabase.from('destinations').upsert(local).then(({error: syncErr}) => {
+          if (syncErr) console.error('Auto-sync destinations error:', syncErr);
+        });
+        callback(local);
+      } else if (remote.length === 0 && local.length === 0) {
         callback([]);
-        return;
+      } else {
+        saveDestinations(remote);
+        callback(remote);
       }
-      saveDestinations(list);
-      callback(list);
     }
   };
 
@@ -259,22 +286,28 @@ export function subscribeToTrips(callback: (trips: Trip[]) => void) {
   const fetchTrips = async () => {
     const { data, error } = await supabase.from('trips').select('*').limit(10000);
     const deletedIds = getDeletedTripIds();
+    const local = getStoredTrips().filter(t => !deletedIds.includes(t.id));
+
     if (error) {
-      callback(getStoredTrips().filter(t => !deletedIds.includes(t.id)));
+      callback(local);
     } else {
-      const list = (data || [])
+      const remote = (data || [])
         .map(item => ({
           ...item,
           passengers: ensurePassengerArray(item.passengers),
         }))
         .filter(t => !deletedIds.includes(t.id));
 
-      if (list.length === 0) {
-        callback([]);
-        return;
+      if (remote.length === 0 && local.length > 0) {
+        // Sync local to remote
+        supabase.from('trips').upsert(local).then(({error: syncErr}) => {
+          if (syncErr) console.error('Auto-sync trips error:', syncErr);
+        });
+        callback(local);
+      } else {
+        saveTrips(remote);
+        callback(remote);
       }
-      saveTrips(list);
-      callback(list);
     }
   };
 
