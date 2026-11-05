@@ -251,22 +251,12 @@ export const PrintManifestModal: React.FC<PrintManifestModalProps> = ({
             </div>
           </div>
 
-          {/* Observações da Viagem e Local de Espera */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-300 pt-3 text-xs">
-            <div>
-              <span className="font-bold text-slate-800 block mb-1">OBSERVAÇÕES OPERACIONAIS:</span>
-              <p className="text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-200 min-h-12 text-xs">
-                {trip.notes || 'Sem observações especiais registradas para esta viagem.'}
-              </p>
-            </div>
-
-            <div>
-              <div className="p-3 bg-sky-50 rounded border border-sky-200">
-                <span className="font-bold text-sky-900 block text-xs uppercase mb-0.5">Onde o Paciente Deverá Esperar para Pegar o Transporte:</span>
-                <span className="font-bold text-slate-900 text-xs sm:text-sm">{trip.departureLocation}</span>
-                <span className="block text-[10px] text-slate-600 mt-0.5">Comparecer impreterivelmente 20 minutos antes do horário de saída ou nos pontos específicos informados na tabela de passageiros.</span>
-              </div>
-            </div>
+          {/* Observações da Viagem */}
+          <div className="border-t border-slate-300 pt-3 text-xs">
+            <span className="font-bold text-slate-800 block mb-1">OBSERVAÇÕES OPERACIONAIS:</span>
+            <p className="text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-200 min-h-12 text-xs">
+              {trip.notes || 'Sem observações especiais registradas para esta viagem.'}
+            </p>
           </div>
 
           {/* Rodapé Oficial */}

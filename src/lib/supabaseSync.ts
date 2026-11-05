@@ -198,15 +198,21 @@ export function subscribeToTrips(callback: (trips: Trip[]) => void) {
 
 export function subscribeToConfig(callback: (config: MunicipalConfig) => void) {
   const fetchConfig = async () => {
-    const { data, error } = await supabase.from('config').select('*').eq('id', 'municipal').maybeSingle();
-    if (error) {
-      console.error('Supabase config error:', error);
-    } else if (data) {
-      callback(data.data as MunicipalConfig);
-    } else {
-      // If no config found, seed it
-      console.log('No config found, seeding...');
-      seedAllFirestore().then(fetchConfig);
+    try {
+      const { data, error } = await supabase.from('config').select('*').eq('id', 'municipal').maybeSingle();
+      if (error) {
+        console.warn('Supabase config error, using default:', error.message || error);
+        callback(getStoredConfig() || INITIAL_MUNICIPAL_CONFIG);
+      } else if (data && data.data) {
+        callback(data.data as MunicipalConfig);
+      } else {
+        console.log('No municipal config found in Supabase, using default and attempting seed...');
+        callback(getStoredConfig() || INITIAL_MUNICIPAL_CONFIG);
+        seedAllFirestore().catch((err) => console.warn('Could not seed initial config:', err));
+      }
+    } catch (err) {
+      console.warn('Error fetching config, using fallback:', err);
+      callback(getStoredConfig() || INITIAL_MUNICIPAL_CONFIG);
     }
   };
 
@@ -227,11 +233,15 @@ export async function updateConfigFirestore(cfg: MunicipalConfig) {
 
 export function subscribeToDestinationCities(callback: (cities: DestinationCity[]) => void) {
   const fetchCities = async () => {
-    const { data, error } = await supabase.from('config').select('*').eq('id', 'destination-cities').single();
-    if (error || !data) {
-      callback(getStoredDestinationCities());
-    } else {
-      callback(data.data as DestinationCity[]);
+    try {
+      const { data, error } = await supabase.from('config').select('*').eq('id', 'destination-cities').maybeSingle();
+      if (error || !data || !data.data) {
+        callback(getStoredDestinationCities() || INITIAL_DESTINATION_CITIES);
+      } else {
+        callback(data.data as DestinationCity[]);
+      }
+    } catch {
+      callback(getStoredDestinationCities() || INITIAL_DESTINATION_CITIES);
     }
   };
 

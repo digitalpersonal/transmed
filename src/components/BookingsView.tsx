@@ -12,14 +12,17 @@ import {
   CheckCircle2, 
   XCircle, 
   Trash2,
-  Bus
+  Bus,
+  MessageCircle
 } from 'lucide-react';
-import { Trip, Vehicle, ensurePassengerArray } from '../types';
+import { Trip, Vehicle, MunicipalConfig, ensurePassengerArray } from '../types';
 import { formatDateBR, formatPlate, getPassengerStatusLabel } from '../utils/formatters';
+import { getWhatsAppConfirmationLink } from '../utils/whatsapp';
 
 interface BookingsViewProps {
   trips: Trip[];
   vehicles: Vehicle[];
+  config?: MunicipalConfig;
   onOpenNewBookingModal: () => void;
   onPrintTicket: (trip: Trip, passengerId: string) => void;
   onCancelBooking: (tripId: string, passengerId: string) => void;
@@ -28,6 +31,7 @@ interface BookingsViewProps {
 export const BookingsView: React.FC<BookingsViewProps> = ({
   trips,
   vehicles,
+  config,
   onOpenNewBookingModal,
   onPrintTicket,
   onCancelBooking,
@@ -222,10 +226,26 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                       <td className="py-3 px-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
+                          {(() => {
+                            const waLink = getWhatsAppConfirmationLink(passenger, trip, vehicle, config);
+                            return waLink ? (
+                              <a
+                                href={waLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                                title="Enviar confirmação e local de embarque no WhatsApp"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">WhatsApp</span>
+                              </a>
+                            ) : null;
+                          })()}
+
                           <button
                             id={`btn-print-ticket-${passenger.id}`}
                             onClick={() => onPrintTicket(trip, passenger.id)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                             title="Imprimir Comprovante de Agendamento do Paciente"
                           >
                             <Printer className="w-3.5 h-3.5" />
@@ -243,7 +263,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                   onCancelBooking(trip.id, passenger.id);
                                 }
                               }}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
                               title="Cancelar agendamento e liberar vaga"
                             >
                               <Trash2 className="w-4 h-4" />

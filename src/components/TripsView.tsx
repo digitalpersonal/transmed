@@ -19,16 +19,19 @@ import {
   ChevronUp,
   CheckCircle2,
   XCircle,
-  Navigation
+  Navigation,
+  MessageCircle
 } from 'lucide-react';
-import { DestinationHospital, Trip, Vehicle, ensurePassengerArray } from '../types';
+import { DestinationHospital, Trip, Vehicle, MunicipalConfig, ensurePassengerArray } from '../types';
 import { exportTripManifestToExcel } from '../utils/excel';
 import { formatDateBR, formatPlate, getPassengerStatusLabel, getTripStatusLabel } from '../utils/formatters';
+import { getWhatsAppConfirmationLink } from '../utils/whatsapp';
 
 interface TripsViewProps {
   trips: Trip[];
   vehicles: Vehicle[];
   destinations: DestinationHospital[];
+  config?: MunicipalConfig;
   onOpenNewTripModal: () => void;
   onEditTrip: (trip: Trip) => void;
   onDeleteTrip: (tripId: string) => void;
@@ -44,6 +47,7 @@ export const TripsView: React.FC<TripsViewProps> = ({
   trips,
   vehicles,
   destinations,
+  config,
   onOpenNewTripModal,
   onEditTrip,
   onDeleteTrip,
@@ -490,13 +494,30 @@ export const TripsView: React.FC<TripsViewProps> = ({
                                     </span>
                                   </td>
                                   <td className="py-2.5 px-3 text-center">
-                                    <button
-                                      onClick={() => onPrintPassengerTicket(trip, p.id)}
-                                      className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg transition-colors cursor-pointer"
-                                      title="Imprimir Comprovante de Agendamento do Paciente"
-                                    >
-                                      <Printer className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex items-center justify-center gap-1">
+                                      {(() => {
+                                        const veh = vehicles.find((v) => v.id === trip.vehicleId);
+                                        const waLink = getWhatsAppConfirmationLink(p, trip, veh, config);
+                                        return waLink ? (
+                                          <a
+                                            href={waLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center shadow-xs"
+                                            title="Enviar mensagem oficial de confirmação com local de embarque no WhatsApp"
+                                          >
+                                            <MessageCircle className="w-4 h-4" />
+                                          </a>
+                                        ) : null;
+                                      })()}
+                                      <button
+                                        onClick={() => onPrintPassengerTicket(trip, p.id)}
+                                        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors cursor-pointer"
+                                        title="Imprimir Comprovante de Agendamento do Paciente"
+                                      >
+                                        <Printer className="w-4 h-4" />
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               );

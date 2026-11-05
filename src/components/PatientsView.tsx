@@ -15,14 +15,18 @@ import {
   ShieldCheck,
   Calendar,
   MessageCircle,
-  Clock
+  Clock,
+  History
 } from 'lucide-react';
-import { Patient } from '../types';
+import { Patient, Trip, Vehicle } from '../types';
 import { downloadSamplePatientTemplate, exportPatientsToExcel } from '../utils/excel';
 import { calculateAge, formatCPF, formatDateBR, formatPhone, formatSUS } from '../utils/formatters';
+import { PatientHistoryModal } from './modals/PatientHistoryModal';
 
 interface PatientsViewProps {
   patients: Patient[];
+  trips?: Trip[];
+  vehicles?: Vehicle[];
   onOpenNewPatientModal: () => void;
   onEditPatient: (patient: Patient) => void;
   onDeletePatient: (patientId: string) => void;
@@ -33,6 +37,8 @@ interface PatientsViewProps {
 
 export const PatientsView: React.FC<PatientsViewProps> = ({
   patients,
+  trips = [],
+  vehicles = [],
   onOpenNewPatientModal,
   onEditPatient,
   onDeletePatient,
@@ -44,6 +50,7 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
   const [conditionFilter, setConditionFilter] = useState<string>('all');
   const [companionFilter, setCompanionFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewingHistoryPatient, setViewingHistoryPatient] = useState<Patient | null>(null);
   const PAGE_SIZE = 200;
 
   // Helper to normalize Portuguese diacritics / accents
@@ -319,6 +326,15 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
                       <td className="py-3 px-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
+                            onClick={() => setViewingHistoryPatient(patient)}
+                            className="flex items-center gap-1 px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-850 rounded font-bold text-xs transition-colors cursor-pointer"
+                            title="Ver histórico de viagens e frequência do paciente"
+                          >
+                            <History className="w-3.5 h-3.5 text-sky-700" />
+                            <span>Histórico</span>
+                          </button>
+
+                          <button
                             onClick={() => onOpenNewBookingModalWithPatient(patient.id)}
                             className="flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded font-bold text-xs transition-colors cursor-pointer"
                             title="Agendar viagem para este paciente"
@@ -329,7 +345,7 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
 
                           <button
                             onClick={() => onEditPatient(patient)}
-                            className="p-1.5 text-slate-500 hover:text-slate-800 rounded hover:bg-slate-100 transition-colors"
+                            className="p-1.5 text-slate-500 hover:text-slate-800 rounded hover:bg-slate-100 transition-colors cursor-pointer"
                             title="Editar cadastro"
                           >
                             <Edit3 className="w-4 h-4" />
@@ -341,7 +357,7 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
                                 onDeletePatient(patient.id);
                               }
                             }}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Excluir cadastro"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -379,6 +395,20 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Modal de Histórico do Paciente */}
+      {viewingHistoryPatient && (
+        <PatientHistoryModal
+          patient={viewingHistoryPatient}
+          trips={trips}
+          vehicles={vehicles}
+          onClose={() => setViewingHistoryPatient(null)}
+          onOpenNewBooking={(patientId) => {
+            setViewingHistoryPatient(null);
+            onOpenNewBookingModalWithPatient(patientId);
+          }}
+        />
+      )}
     </div>
   );
 };

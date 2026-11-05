@@ -243,50 +243,55 @@ export default function App() {
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   useEffect(() => {
-    let loadedCount = 0;
-    const totalToLoad = 7; // Patients, Vehicles, Drivers, Destinations, Trips, Config, Cities
+    const loadedCategories = new Set<string>();
+    const requiredCategories = ['patients', 'vehicles', 'drivers', 'destinations', 'trips', 'config', 'cities'];
 
-    const checkAllLoaded = () => {
-      loadedCount++;
-      if (loadedCount === totalToLoad) {
+    const markLoaded = (category: string) => {
+      loadedCategories.add(category);
+      if (requiredCategories.every(c => loadedCategories.has(c))) {
         setIsDataLoading(false);
       }
     };
 
+    // Safety fallback: never keep user stuck on loading spinner for more than 3.5 seconds
+    const safetyTimeout = setTimeout(() => {
+      setIsDataLoading(false);
+    }, 3500);
+
     const unsubPatients = subscribeToPatients((p) => {
       console.log('[App] Received patients from Supabase:', p.length);
       setPatients(p);
-      checkAllLoaded();
+      markLoaded('patients');
     });
     const unsubVehicles = subscribeToVehicles((v) => {
       console.log('[App] Received vehicles from Supabase:', v.length);
       setVehicles(v);
-      checkAllLoaded();
+      markLoaded('vehicles');
     });
     const unsubDrivers = subscribeToDrivers((d) => {
       console.log('[App] Received drivers from Supabase:', d.length);
       setDrivers(d);
-      checkAllLoaded();
+      markLoaded('drivers');
     });
     const unsubDestinations = subscribeToDestinations((d) => {
       console.log('[App] Received destinations from Supabase:', d.length);
       setDestinations(d);
-      checkAllLoaded();
+      markLoaded('destinations');
     });
     const unsubTrips = subscribeToTrips((t) => {
       console.log('[App] Received trips from Supabase:', t.length);
       setTrips(t);
-      checkAllLoaded();
+      markLoaded('trips');
     });
     const unsubConfig = subscribeToConfig((c) => {
       console.log('[App] Received config from Supabase');
       setConfig(c);
-      checkAllLoaded();
+      markLoaded('config');
     });
     const unsubCities = subscribeToDestinationCities((citiesList) => {
       console.log('[App] Received cities from Supabase:', citiesList.length);
       setDestinationCities(citiesList);
-      checkAllLoaded();
+      markLoaded('cities');
     });
     const unsubSnapshots = subscribeToBackupSnapshots((snaps) => {
       console.log('[App] Received backup snapshots from Supabase:', snaps.length);
@@ -294,6 +299,7 @@ export default function App() {
     });
 
     return () => {
+      clearTimeout(safetyTimeout);
       unsubPatients();
       unsubVehicles();
       unsubDrivers();
@@ -479,18 +485,10 @@ export default function App() {
     if (!capturedRows || capturedRows.length === 0) return;
 
     const todayStr = new Date().toISOString().slice(0, 10);
-    const validPairs = capturedRows
-      .map((row, idx) => ({ row, patient: newPatients[idx] }))
-      .filter((pair) => (pair.row.dataViagem || todayStr) >= todayStr);
-
-    if (validPairs.length === 0) {
-      showToast('Nenhuma viagem válida (hoje ou futura) encontrada na planilha.', 'info');
-      return;
-    }
-
-    // Process valid pairs
-    capturedRows = validPairs.map(p => p.row);
-    newPatients = validPairs.map(p => p.patient);
+    
+    // Process ALL rows for patient registration, but only future/today for trips
+    const rowsToProcess = capturedRows;
+    const patientsFromRows = newPatients;
 
     // Arrays representing updated states
     let localPatients = [...patients];
@@ -644,8 +642,8 @@ export default function App() {
     // Process all spreadsheet rows (merge with existing trips, preserving manually registered data)
     let updatedTrips: Trip[] = [...trips];
 
-    capturedRows.forEach((row, idx) => {
-      const parsedPat = newPatients[idx];
+    rowsToProcess.forEach((row, idx) => {
+      const parsedPat = patientsFromRows[idx];
       if (!parsedPat) return;
 
       const destCity = (row.cidadeDestino || row.destino || 'Campinas').trim();
@@ -669,14 +667,12 @@ export default function App() {
       const driverName = getOrAddDriver(row.motorista || '');
 
       // Upsert/Merge patient (runs for all rows)
-      // SEARCH BY CPF FIRST, THEN BY NAME TO PREVENT DUPLICATES
       let existingPat = localPatients.find(p => 
         (parsedPat.cpf && p.cpf === parsedPat.cpf) || 
         (p.name.toLowerCase().trim() === parsedPat.name.toLowerCase().trim())
       );
 
       if (existingPat) {
-        // Merge & update missing/modified fields (UPGRADE PATIENT)
         existingPat = {
           ...existingPat,
           susCard: parsedPat.susCard || existingPat.susCard,
@@ -708,77 +704,123 @@ export default function App() {
         patientsToUpsert.push(existingPat);
       }
 
-      const tripDate = row.dataViagem || todayStr;
-      
-      // Check if trip already exists for this destination + date + vehicle
-      let targetTrip = updatedTrips.find(t => 
-        t.destinationCity.toLowerCase().includes(validatedCityName.toLowerCase()) &&
-        (t.status === 'scheduled' || t.status === 'in_route') &&
-        t.departureDate === tripDate &&
-        t.vehicleId === targetVehicle.id
-      );
+      // REGISTER COMPANION AS STANDALONE PATIENT (If requested)
+      if (parsedPat.companionName && parsedPat.companionName.trim().length > 3) {
+        const compName = parsedPat.companionName.trim();
+        const compCpf = parsedPat.companionCpf || '';
+        
+        let existingComp = localPatients.find(p => 
+          (compCpf && p.cpf === compCpf) || 
+          (p.name.toLowerCase().trim() === compName.toLowerCase())
+        );
 
-      const passengerItem: TripPassenger = {
-        id: `pass-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
-        bookingCode: `BKG-${Math.floor(1000 + Math.random() * 9000)}`,
-        patientId: existingPat.id,
-        patientName: existingPat.name,
-        patientBirthDate: existingPat.birthDate,
-        patientCpf: existingPat.cpf,
-        patientSus: existingPat.susCard,
-        patientPhone: existingPat.phone || existingPat.whatsapp || '',
-        patientAddress: existingPat.boardingAddress || existingPat.address,
-        mobility: existingPat.mobility || 'Ambulante',
-        companionIncluded: existingPat.companionRequired || false,
-        companionName: existingPat.companionName,
-        companionBirthDate: existingPat.companionBirthDate,
-        companionCpf: existingPat.companionCpf,
-        companionAddress: existingPat.companionAddress,
-        companionKinship: existingPat.companionKinship,
-        destinationId: 'dest-auto',
-        destinationName: validatedHospitalName,
-        destinationCity: validatedCityName,
-        appointmentTime: row.horarioProcedimento || existingPat.procedureTime || '08:00',
-        appointmentType: existingPat.condition || 'Consulta Médica',
-        status: 'confirmed',
-        bookedAt: todayStr,
-      };
-
-      if (!targetTrip) {
-        const newTripId = `trip-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`;
-        const newTripCode = `TRIP-${Math.floor(1000 + Math.random() * 9000)}`;
-        targetTrip = {
-          id: newTripId,
-          code: newTripCode,
-          destinationCity: validatedCityName,
-          destinationHospital: validatedHospitalName,
-          departureDate: tripDate,
-          departureTime: row.horarioSaida || '05:30',
-          estimatedReturnDate: tripDate,
-          estimatedReturnTime: '17:00',
-          originCity: 'Município de Origem',
-          vehicleId: targetVehicle.id,
-          driverName: driverName,
-          driverPhone: '(19) 99999-9999',
-          departureLocation: 'Secretaria Municipal de Saúde - Terminal TFD',
-          status: 'scheduled',
-          passengers: [passengerItem],
-          destinationIds: ['dest-auto'],
-          createdAt: todayStr,
-        };
-        updatedTrips = [targetTrip, ...updatedTrips];
-      } else {
-        const existingPass = ensurePassengerArray(targetTrip.passengers);
-        if (!existingPass.some(p => p.patientId === existingPat!.id)) {
-          const updatedTripPassengers = [...existingPass, passengerItem];
-          
-          targetTrip = {
-            ...targetTrip,
-            passengers: updatedTripPassengers,
-            destinationHospital: targetTrip.destinationHospital || validatedHospitalName,
-            status: 'scheduled', // Keep it active if newly imported passenger is added
+        if (existingComp) {
+          existingComp = {
+            ...existingComp,
+            birthDate: parsedPat.companionBirthDate || existingComp.birthDate,
+            cpf: compCpf || existingComp.cpf,
+            address: parsedPat.companionAddress || existingComp.address,
+            boardingAddress: parsedPat.companionAddress || existingComp.boardingAddress || existingComp.address,
           };
-          updatedTrips = updatedTrips.map(t => t.id === targetTrip!.id ? targetTrip! : t);
+          localPatients = localPatients.map(p => p.id === existingComp!.id ? existingComp! : p);
+          if (!patientsToUpsert.some(p => p.id === existingComp!.id)) {
+            patientsToUpsert.push(existingComp);
+          }
+        } else {
+          const newComp: Patient = {
+            id: `pat-comp-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+            name: compName,
+            cpf: compCpf || `${Math.floor(10000000000 + Math.random() * 90000000000)}`,
+            susCard: `COMP-${Math.floor(100000000000000 + Math.random() * 90000000000000)}`,
+            birthDate: parsedPat.companionBirthDate || '1980-01-01',
+            phone: '',
+            address: parsedPat.companionAddress || parsedPat.address || '',
+            boardingAddress: parsedPat.companionAddress || parsedPat.boardingAddress || parsedPat.address || '',
+            neighborhood: 'Centro',
+            city: 'Município de Origem',
+            condition: 'Outro',
+            mobility: 'Ambulante',
+            companionRequired: false,
+            createdAt: todayStr
+          };
+          localPatients.push(newComp);
+          patientsToUpsert.push(newComp);
+        }
+      }
+
+      // PROCESS TRIPS ONLY FOR FUTURE/TODAY DATES
+      const tripDate = row.dataViagem || todayStr;
+      if (tripDate >= todayStr) {
+        // Check if trip already exists for this destination + date + vehicle
+        let targetTrip = updatedTrips.find(t => 
+          t.destinationCity.toLowerCase().includes(validatedCityName.toLowerCase()) &&
+          (t.status === 'scheduled' || t.status === 'in_route') &&
+          t.departureDate === tripDate &&
+          t.vehicleId === targetVehicle.id
+        );
+
+        const passengerItem: TripPassenger = {
+          id: `pass-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+          bookingCode: `BKG-${Math.floor(1000 + Math.random() * 9000)}`,
+          patientId: existingPat.id,
+          patientName: existingPat.name,
+          patientBirthDate: existingPat.birthDate,
+          patientCpf: existingPat.cpf,
+          patientSus: existingPat.susCard,
+          patientPhone: existingPat.phone || existingPat.whatsapp || '',
+          patientAddress: existingPat.boardingAddress || existingPat.address,
+          mobility: existingPat.mobility || 'Ambulante',
+          companionIncluded: existingPat.companionRequired || false,
+          companionName: existingPat.companionName,
+          companionBirthDate: existingPat.companionBirthDate,
+          companionCpf: existingPat.companionCpf,
+          companionAddress: existingPat.companionAddress,
+          companionKinship: existingPat.companionKinship,
+          destinationId: 'dest-auto',
+          destinationName: validatedHospitalName,
+          destinationCity: validatedCityName,
+          appointmentTime: row.horarioProcedimento || existingPat.procedureTime || '08:00',
+          appointmentType: existingPat.condition || 'Consulta Médica',
+          status: 'confirmed',
+          bookedAt: todayStr,
+        };
+
+        if (!targetTrip) {
+          const newTripId = `trip-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`;
+          const newTripCode = `TRIP-${Math.floor(1000 + Math.random() * 9000)}`;
+          targetTrip = {
+            id: newTripId,
+            code: newTripCode,
+            destinationCity: validatedCityName,
+            destinationHospital: validatedHospitalName,
+            departureDate: tripDate,
+            departureTime: row.horarioSaida || '05:30',
+            estimatedReturnDate: tripDate,
+            estimatedReturnTime: '17:00',
+            originCity: 'Município de Origem',
+            vehicleId: targetVehicle.id,
+            driverName: driverName,
+            driverPhone: '(19) 99999-9999',
+            departureLocation: 'Secretaria Municipal de Saúde - Terminal TFD',
+            status: 'scheduled',
+            passengers: [passengerItem],
+            destinationIds: ['dest-auto'],
+            createdAt: todayStr,
+          };
+          updatedTrips = [targetTrip, ...updatedTrips];
+        } else {
+          const existingPass = ensurePassengerArray(targetTrip.passengers);
+          if (!existingPass.some(p => p.patientId === existingPat!.id)) {
+            const updatedTripPassengers = [...existingPass, passengerItem];
+            
+            targetTrip = {
+              ...targetTrip,
+              passengers: updatedTripPassengers,
+              destinationHospital: targetTrip.destinationHospital || validatedHospitalName,
+              status: 'scheduled',
+            };
+            updatedTrips = updatedTrips.map(t => t.id === targetTrip!.id ? targetTrip! : t);
+          }
         }
       }
     });
@@ -797,11 +839,10 @@ export default function App() {
     setDestinationCities(localCities);
     setTrips(updatedTrips);
 
-    // Sync everything to Supabase using high-speed bulk writes to avoid browser request limits
+    // Sync everything to Supabase
     try {
       const itemsToUpsert: { collectionName: string; id: string; data: any }[] = [];
 
-      // Ensure absolutely everything processed is registered on Supabase
       localPatients.forEach(p => {
         itemsToUpsert.push({ collectionName: 'patients', id: p.id, data: p });
       });
@@ -827,7 +868,7 @@ export default function App() {
         localCities.length > 0 ? updateDestinationCitiesFirestore(localCities) : Promise.resolve()
       ]);
 
-      showToast(`Planilha importada! ${localPatients.length} pacientes, ${updatedTrips.length} viagens sincronizados com sucesso no Supabase!`, 'success');
+      showToast(`Planilha importada! ${localPatients.length} pessoas cadastradas. Viagens futuras sincronizadas com sucesso no Supabase!`, 'success');
     } catch (err) {
       console.error('Error synchronizing spreadsheet data to Supabase:', err);
       showToast('Importação concluída localmente. Erro ao sincronizar com a nuvem.', 'error');
@@ -1233,31 +1274,22 @@ export default function App() {
 
             <button
               type="submit"
+              id="btn-submit-login"
               disabled={isLoggingIn}
-              className="w-full bg-emerald-850 hover:bg-emerald-900 text-white font-bold py-3.5 rounded-xl text-sm transition-colors shadow-lg shadow-emerald-800/10 flex items-center justify-center gap-2 cursor-pointer mt-2"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-3.5 px-4 rounded-xl text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-4"
             >
               {isLoggingIn ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Entrando...</span>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span className="font-bold text-sm">Autenticando...</span>
                 </>
               ) : (
-                <span>Entrar no Sistema</span>
+                <>
+                  <span className="font-bold text-sm tracking-wide">ENTRAR NO SISTEMA</span>
+                  <span className="text-lg leading-none">→</span>
+                </>
               )}
             </button>
-
-            <div className="pt-2 flex items-center justify-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginEmail('digitalpersonal@gmail.com');
-                  setLoginPassword('Mld3602#?+');
-                }}
-                className="text-xs text-emerald-700 hover:text-emerald-900 font-bold hover:underline cursor-pointer flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100/70 px-3 py-1.5 rounded-lg border border-emerald-200 transition-colors"
-              >
-                <span>Usar Credenciais de Administrador</span>
-              </button>
-            </div>
           </form>
         </div>
         
@@ -1400,6 +1432,7 @@ export default function App() {
             trips={trips}
             vehicles={vehicles}
             destinations={destinations}
+            config={config}
             onOpenNewTripModal={() => {
               setEditingTrip(null);
               setIsTripModalOpen(true);
@@ -1429,6 +1462,7 @@ export default function App() {
           <BookingsView
             trips={trips}
             vehicles={vehicles}
+            config={config}
             onOpenNewBookingModal={() => {
               setPreselectedTripId(undefined);
               setPreselectedPatientId(undefined);
@@ -1442,6 +1476,8 @@ export default function App() {
         {activeTab === 'patients' && (
           <PatientsView
             patients={patients}
+            trips={trips}
+            vehicles={vehicles}
             onOpenNewPatientModal={() => {
               setEditingPatient(null);
               setIsPatientModalOpen(true);

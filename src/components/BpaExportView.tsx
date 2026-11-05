@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { 
   FileText, Download, ShieldCheck, Building2, UserCheck, 
   Calendar, CheckCircle, AlertCircle, HelpCircle, ArrowRight, Database,
-  RotateCcw, Trash2
+  RotateCcw, Trash2, Printer
 } from 'lucide-react';
 import { Trip, Driver, MunicipalConfig, Patient } from '../types';
 import { downloadBpaFile, BpaItem } from '../utils/bpaExport';
+import { generateBpaPdfReport } from '../utils/bpaPdfReport';
 
 interface BpaExportViewProps {
   trips: Trip[];
@@ -194,6 +195,34 @@ export const BpaExportView: React.FC<BpaExportViewProps> = ({
               </button>
             </>
           )}
+          <button
+            onClick={() => {
+              if (filteredTrips.length === 0) {
+                showToast(`Nenhuma viagem encontrada para gerar o relatório em PDF na ${exportMode === 'daily' ? 'data' : 'competência'} selecionada.`, 'error');
+                return;
+              }
+              generateBpaPdfReport(
+                competencia,
+                cnes,
+                config,
+                filteredTrips,
+                patients,
+                exportMode === 'daily' ? selectedDate : undefined
+              );
+              showToast('Relatório Oficial de Faturamento BPA (PDF) gerado com sucesso!', 'success');
+            }}
+            disabled={filteredTrips.length === 0}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold shadow-md transition-all cursor-pointer ${
+              filteredTrips.length > 0
+                ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-900/30'
+                : 'bg-slate-700 text-slate-400 cursor-not-allowed'
+            }`}
+            title="Emitir documento PDF com consolidação por procedimento e relação nominal para prestação de contas do SUS"
+          >
+            <Printer className="w-5 h-5" />
+            <span>Emitir Relatório em PDF</span>
+          </button>
+
           <button
             onClick={handleExport}
             disabled={bpaItems.length === 0}

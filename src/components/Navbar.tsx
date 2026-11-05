@@ -84,7 +84,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'patients', label: 'Pacientes & Acomp.', icon: Users },
     { id: 'vehicles', label: 'Frota de Veículos', icon: Truck },
     { id: 'drivers', label: 'Motoristas', icon: UserCircle2 },
-    { id: 'destinations', label: 'Cidades Atendidas', icon: MapPin },
+    { id: 'destinations', label: 'Destinos & Hospitais', icon: MapPin },
     { id: 'boarding', label: 'Locais de Embarque', icon: MapPin },
     { id: 'reports', label: 'Fechamentos & Relatórios', icon: FileCheck },
     { id: 'bpa', label: 'Faturamento BPA', icon: FileText },
@@ -92,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="print:hidden bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
+    <header className="print:hidden bg-slate-900 text-white border-b border-slate-800 static md:sticky top-0 z-40 shadow-md">
       {/* Top Banner */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80">
         <div className="flex items-center gap-3">
@@ -148,7 +148,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="btn-nav-users"
                 onClick={onOpenUserModal}
-                className="p-1.5 text-emerald-400 hover:text-emerald-300 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-1 text-xs font-semibold px-2"
+                className="p-1.5 text-emerald-400 hover:text-emerald-300 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-1 text-xs font-semibold px-2 cursor-pointer"
                 title="Administração e Gestão de Usuários"
               >
                 <ShieldCheck className="w-4 h-4" />
@@ -158,7 +158,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="btn-nav-config"
                 onClick={onOpenConfigModal}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Configurações e Backup"
               >
                 <Settings className="w-4 h-4" />
@@ -189,8 +189,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Navigation Tabs Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav className="flex flex-wrap items-center gap-1 py-2">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+        <nav className="flex items-center gap-1 py-2 overflow-x-auto no-scrollbar scroll-smooth">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -199,7 +199,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 key={tab.id}
                 id={`tab-${tab.id}`}
                 onClick={() => setActiveTab(tab.id as ActiveTab)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'text-slate-300 hover:text-white hover:bg-slate-800'
