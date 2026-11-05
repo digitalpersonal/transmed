@@ -25,20 +25,28 @@ export const DestinationCitiesView: React.FC<DestinationCitiesViewProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'cities' | 'hospitals' | 'specialties'>('cities');
   const [searchTerm, setSearchTerm] = useState('');
+  const isSearchActive = searchTerm.trim().length >= 3;
+  const term = searchTerm.trim().toLowerCase();
 
-  const filteredCities = cities.filter((c) =>
-    c.cityName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.state.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.mainHospitals.some((h) => h.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    c.specialties.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredCities = cities.filter((c) => {
+    if (!isSearchActive) return true;
+    return (
+      c.cityName.toLowerCase().includes(term) ||
+      c.state.toLowerCase().includes(term) ||
+      c.mainHospitals.some((h) => h.toLowerCase().includes(term)) ||
+      c.specialties.some((s) => s.toLowerCase().includes(term))
+    );
+  });
 
-  const filteredHospitals = destinations.filter((h) =>
-    h.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (h.specialties || []).some((s) => s.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredHospitals = destinations.filter((h) => {
+    if (!isSearchActive) return true;
+    return (
+      h.name.toLowerCase().includes(term) ||
+      h.city.toLowerCase().includes(term) ||
+      h.address.toLowerCase().includes(term) ||
+      (h.specialties || []).some((s) => s.toLowerCase().includes(term))
+    );
+  });
 
   // Collect all unique specialties across cities & hospitals
   const allSpecialtiesMap = new Map<string, { cities: Set<string>; hospitals: Set<string> }>();
@@ -68,7 +76,7 @@ export const DestinationCitiesView: React.FC<DestinationCitiesViewProps> = ({
       cities: Array.from(data.cities),
       hospitals: Array.from(data.hospitals),
     }))
-    .filter((s) => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    .filter((s) => !isSearchActive || s.name.toLowerCase().includes(term));
 
   return (
     <div className="space-y-6">

@@ -94,15 +94,48 @@ function safeSetItem(key: string, value: string): void {
   }
 }
 
+// Helper to fetch all rows beyond PostgREST's default 1000-row limit using range pagination
+export async function fetchAllRowsFromTable<T>(tableName: string): Promise<T[]> {
+  let allRows: T[] = [];
+  let from = 0;
+  const step = 1000;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('*')
+      .range(from, from + step - 1);
+
+    if (error) {
+      console.error(`[SupabaseSync] Error fetching paginated rows from ${tableName}:`, error);
+      break;
+    }
+
+    if (data && data.length > 0) {
+      allRows = allRows.concat(data as T[]);
+      if (data.length < step) {
+        hasMore = false;
+      } else {
+        from += step;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return allRows;
+}
+
 export function subscribeToPatients(callback: (patients: Patient[]) => void) {
   const fetchPatients = async () => {
-    const { data, error } = await supabase.from('patients').select('*').limit(10000);
-    if (error) {
-      console.error('Supabase patients error details:', JSON.stringify(error, null, 2));
+    try {
+      const data = await fetchAllRowsFromTable<Patient>('patients');
+      console.log(`[SupabaseSync] Patients fetch successful (paginated). Total rows: ${data.length}`);
+      callback(data);
+    } catch (error) {
+      console.error('Supabase patients error:', error);
       callback([]);
-    } else {
-      console.log(`[SupabaseSync] Patients fetch successful. Rows: ${data?.length || 0}`);
-      callback(data || []);
     }
   };
 
@@ -118,12 +151,12 @@ export function subscribeToPatients(callback: (patients: Patient[]) => void) {
 
 export function subscribeToVehicles(callback: (vehicles: Vehicle[]) => void) {
   const fetchVehicles = async () => {
-    const { data, error } = await supabase.from('vehicles').select('*').limit(10000);
-    if (error) {
+    try {
+      const data = await fetchAllRowsFromTable<Vehicle>('vehicles');
+      callback(data);
+    } catch (error) {
       console.error('Supabase vehicles error:', error);
       callback([]);
-    } else {
-      callback(data || []);
     }
   };
   fetchVehicles();
@@ -138,12 +171,12 @@ export function subscribeToVehicles(callback: (vehicles: Vehicle[]) => void) {
 
 export function subscribeToDrivers(callback: (drivers: Driver[]) => void) {
   const fetchDrivers = async () => {
-    const { data, error } = await supabase.from('drivers').select('*').limit(10000);
-    if (error) {
+    try {
+      const data = await fetchAllRowsFromTable<Driver>('drivers');
+      callback(data);
+    } catch (error) {
       console.error('Supabase drivers error:', error);
       callback([]);
-    } else {
-      callback(data || []);
     }
   };
   fetchDrivers();
@@ -158,12 +191,12 @@ export function subscribeToDrivers(callback: (drivers: Driver[]) => void) {
 
 export function subscribeToDestinations(callback: (destinations: DestinationHospital[]) => void) {
   const fetchDestinations = async () => {
-    const { data, error } = await supabase.from('destinations').select('*').limit(10000);
-    if (error) {
+    try {
+      const data = await fetchAllRowsFromTable<DestinationHospital>('destinations');
+      callback(data);
+    } catch (error) {
       console.error('Supabase destinations error:', error);
       callback([]);
-    } else {
-      callback(data || []);
     }
   };
   fetchDestinations();
@@ -178,12 +211,12 @@ export function subscribeToDestinations(callback: (destinations: DestinationHosp
 
 export function subscribeToTrips(callback: (trips: Trip[]) => void) {
   const fetchTrips = async () => {
-    const { data, error } = await supabase.from('trips').select('*').limit(10000);
-    if (error) {
+    try {
+      const data = await fetchAllRowsFromTable<Trip>('trips');
+      callback(data.map(item => ({ ...item, passengers: ensurePassengerArray(item.passengers) })));
+    } catch (error) {
       console.error('Supabase trips error:', error);
       callback([]);
-    } else {
-      callback((data || []).map(item => ({ ...item, passengers: ensurePassengerArray(item.passengers) })));
     }
   };
   fetchTrips();
@@ -450,26 +483,37 @@ export async function performBatchWrite(
     deleteGroups[item.collectionName].push(item.id);
   });
 
-  // Execute upserts in parallel
+  // Execute upserts in parallel with 500-item chunking
   const upsertPromises = Object.entries(upsertGroups).map(async ([table, rows]) => {
-    console.log(`[SupabaseSync] Upserting ${rows.length} rows to ${table}`);
-    const { error } = await supabase.from(table).upsert(rows);
-    if (error) {
-      console.error(`[SupabaseSync] Error upserting to ${table}:`, error);
-      throw error;
+    console.log(`[SupabaseSync] Upserting ${rows.length} rows to ${table} in chunks of 500`);
+    const chunkSize = 500;
+    for (let i = 0; i < rows.length; i += chunkSize) {
+      const chunk = rows.slice(i, i + chunkSize);
+      const { error } = await supabase.from(table).upsert(chunk);
+      if (error) {
+        console.error(`[SupabaseSync] Error upserting chunk (index ${i}) to ${table}:`, error);
+        throw error;
+      }
     }
-    console.log(`[SupabaseSync] Successfully upserted to ${table}`);
+    console.log(`[SupabaseSync] Successfully upserted all ${rows.length} rows to ${table}`);
   });
 
-  // Execute deletes in parallel
+  // Execute deletes in parallel with 50-item chunking to avoid HTTP GET/DELETE URL length limits
   const deletePromises = Object.entries(deleteGroups).map(async ([table, ids]) => {
-    console.log(`[SupabaseSync] Deleting ${ids.length} rows from ${table}`);
-    const { error } = await supabase.from(table).delete().in('id', ids);
-    if (error) {
-      console.error(`[SupabaseSync] Error deleting from ${table}:`, error);
-      throw error;
+    console.log(`[SupabaseSync] Deleting ${ids.length} rows from ${table} in chunks of 50`);
+    const chunkSize = 50;
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      try {
+        const { error } = await supabase.from(table).delete().in('id', chunk);
+        if (error) {
+          console.warn(`[SupabaseSync] Error deleting chunk from ${table}:`, error);
+        }
+      } catch (err) {
+        console.warn(`[SupabaseSync] Delete chunk network exception for ${table}:`, err);
+      }
     }
-    console.log(`[SupabaseSync] Successfully deleted from ${table}`);
+    console.log(`[SupabaseSync] Finished deleting rows from ${table}`);
   });
 
   await Promise.all([...upsertPromises, ...deletePromises]);

@@ -67,11 +67,13 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
       .toLowerCase();
   };
 
-  // Filtered patients for selection (now robust & diacritics-insensitive)
+  // Filtered patients for selection (now robust & diacritics-insensitive, triggers from 3 characters)
   const filteredPatients = useMemo(() => {
     const term = normalizeString(patientSearch.trim());
-    if (!term) return patients;
     const cleanSearchTerm = term.replace(/\D/g, '');
+
+    // Require at least 3 characters or 3 digits to activate filtering
+    if (!term || (term.length < 3 && cleanSearchTerm.length < 3)) return patients;
 
     const results = patients.filter((p) => {
       const patientNameNormalized = normalizeString(p.name);
@@ -79,8 +81,8 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
       const cleanSus = (p.susCard || '').replace(/\D/g, '');
 
       const nameMatch = patientNameNormalized.includes(term);
-      const cpfMatch = cleanSearchTerm && cleanCpf.includes(cleanSearchTerm);
-      const susMatch = cleanSearchTerm && cleanSus.includes(cleanSearchTerm);
+      const cpfMatch = cleanSearchTerm.length >= 3 && cleanCpf.includes(cleanSearchTerm);
+      const susMatch = cleanSearchTerm.length >= 3 && cleanSus.includes(cleanSearchTerm);
 
       return nameMatch || cpfMatch || susMatch;
     });
@@ -434,8 +436,8 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                 />
               </div>
 
-              {/* Sugestões de Autocomplete em Tempo Real */}
-              {showSuggestions && patientSearch.trim().length > 0 && (
+              {/* Sugestões de Autocomplete em Tempo Real (inicia a partir da 3ª letra) */}
+              {showSuggestions && (patientSearch.trim().length >= 3 || patientSearch.replace(/\D/g, '').length >= 3) && (
                 <div className="absolute z-50 w-full bg-white border border-slate-200 mt-1 rounded-lg shadow-lg max-h-52 overflow-y-auto divide-y divide-slate-100">
                   {filteredPatients.length === 0 ? (
                     <div className="p-3 text-slate-500 text-center">Nenhum paciente encontrado</div>

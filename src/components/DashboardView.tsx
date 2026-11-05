@@ -19,9 +19,10 @@ import {
   Edit,
   X,
   Search,
-  RotateCcw
+  RotateCcw,
+  UserCheck
 } from 'lucide-react';
-import { DestinationHospital, MunicipalConfig, Patient, Trip, Vehicle, ensurePassengerArray } from '../types';
+import { DestinationHospital, MunicipalConfig, Patient, Trip, TripPassenger, Vehicle, ensurePassengerArray } from '../types';
 import { formatDateBR, formatPlate, getTripStatusLabel, getVehicleTypeLabel } from '../utils/formatters';
 
 interface DashboardViewProps {
@@ -41,6 +42,7 @@ interface DashboardViewProps {
   onClearTripsOnly: () => void;
   onEditTrip: (trip: Trip) => void;
   onCancelBooking: (tripId: string, passengerId: string) => void;
+  onCleanupTrips?: () => void;
   isAdmin?: boolean;
 }
 
@@ -61,6 +63,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onClearTripsOnly,
   onEditTrip,
   onCancelBooking,
+  onCleanupTrips,
   isAdmin,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -107,9 +110,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       });
   }, [trips]);
   
-  // Total passengers across scheduled trips
+  // Helper to deduplicate passengers at display time for clean cards and KPIs
+  const getDeduplicatedPassengers = (passengers: any): TripPassenger[] => {
+    const rawList = ensurePassengerArray(passengers);
+    if (rawList.length <= 1) return rawList;
+
+    const seen = new Set<string>();
+    const cleanList: TripPassenger[] = [];
+
+    rawList.forEach((p) => {
+      const cpf = (p.patientCpf || '').replace(/\D/g, '');
+      const sus = (p.patientSus || '').replace(/\D/g, '');
+      const name = (p.patientName || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+      const id = p.patientId || p.id;
+
+      let key = '';
+      if (cpf.length === 11) key = `cpf_${cpf}`;
+      else if (sus.length >= 10) key = `sus_${sus}`;
+      else if (name.length >= 3 && !['paciente', 'n/a', 'sem nome', 'desconhecido'].includes(name)) key = `name_${name}`;
+      else key = `id_${id}`;
+
+      if (!seen.has(key)) {
+        seen.add(key);
+        cleanList.push(p);
+      }
+    });
+
+    return cleanList;
+  };
+
+  // Total passengers across scheduled trips (deduplicated)
   const totalScheduledPassengers = useMemo(() => scheduledTrips.reduce((acc, t) => {
-    return acc + ensurePassengerArray(t.passengers).reduce((pAcc, p) => pAcc + 1 + (p.companionIncluded ? 1 : 0), 0);
+    return acc + getDeduplicatedPassengers(t.passengers).reduce((pAcc, p) => pAcc + 1 + (p.companionIncluded ? 1 : 0), 0);
   }, 0), [scheduledTrips]);
 
   // Total seat capacity of active scheduled trips
@@ -162,6 +198,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <Plus className="w-4 h-4" />
               Agendar Nova Viagem
             </button>
+
+            {onCleanupTrips && (
+              <button
+                type="button"
+                onClick={() => onCleanupTrips()}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-600/90 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow-md transition-colors cursor-pointer"
+                title="Unifica passageiros repetidos em todas as viagens"
+              >
+                <UserCheck className="w-4 h-4 text-amber-200" />
+                Limpar Passageiros Duplicados
+              </button>
+            )}
 
             {isAdmin && (
               <>
@@ -365,7 +413,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 const isToday = trip.departureDate === new Date().toISOString().slice(0, 10);
                 const vehicle = vehicles.find((v) => v.id === trip.vehicleId);
                 const maxCap = vehicle?.maxCapacity || 16;
-                const passList = ensurePassengerArray(trip.passengers);
+                const passList = getDeduplicatedPassengers(trip.passengers);
                 const totalPass = passList.reduce((acc, p) => acc + 1 + (p.companionIncluded ? 1 : 0), 0);
                 const freeSeats = maxCap - totalPass;
                 const occupancyPercent = maxCap > 0 ? Math.round((totalPass / maxCap) * 100) : 0;
@@ -483,9 +531,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (confirm(`Remover o agendamento de ${p.patientName} desta viagem?`)) {
-                                    onCancelBooking(trip.id, p.id);
-                                  }
+                                  onCancelBooking(trip.id, p.id);
                                 }}
                                 className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded p-0.5 transition-colors cursor-pointer"
                                 title="Cancelar agendamento de paciente"

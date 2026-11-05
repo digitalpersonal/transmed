@@ -496,20 +496,21 @@ export default function App() {
     let localDrivers = [...drivers];
     let localDestinations = [...destinations];
     let localCities = [...destinationCities];
+    let localTrips = [...trips];
 
-    // Track database writes
-    const patientsToUpsert: Patient[] = [];
-    const vehiclesToUpsert: Vehicle[] = [];
-    const driversToUpsert: Driver[] = [];
-    const destinationsToUpsert: DestinationHospital[] = [];
-    const citiesToUpsert: DestinationCity[] = [];
+    // Track database writes (Only items that are truly NEW or MODIFIED)
+    const patientsToUpsert = new Map<string, Patient>();
+    const vehiclesToUpsert = new Map<string, Vehicle>();
+    const driversToUpsert = new Map<string, Driver>();
+    const destinationsToUpsert = new Map<string, DestinationHospital>();
+    const citiesToUpsert = new Map<string, DestinationCity>();
+    const tripsToUpsert = new Map<string, Trip>();
 
     // Helper functions for lookup or auto-creation
     const getOrAddVehicle = (vehicleStr: string): Vehicle => {
       const cleanVeh = vehicleStr.trim();
       if (!cleanVeh) {
         if (localVehicles.length > 0) return localVehicles[0];
-        // Create default fallback vehicle
         const defVeh: Vehicle = {
           id: 'v-default',
           model: 'Van Escala TFD',
@@ -527,11 +528,10 @@ export default function App() {
           createdAt: todayStr
         };
         localVehicles.push(defVeh);
-        vehiclesToUpsert.push(defVeh);
+        vehiclesToUpsert.set(defVeh.id, defVeh);
         return defVeh;
       }
 
-      // Check if matches model or plate
       let found = localVehicles.find(v => 
         v.model.toLowerCase().includes(cleanVeh.toLowerCase()) ||
         v.plate.toLowerCase().includes(cleanVeh.toLowerCase()) ||
@@ -539,7 +539,6 @@ export default function App() {
       );
 
       if (!found) {
-        // Parse plate if in parenthesis (e.g. "Master (SAU-4A12)")
         const plateMatch = cleanVeh.match(/\(([^)]+)\)/);
         const plate = plateMatch ? plateMatch[1].toUpperCase() : `TFD-${Math.floor(1000 + Math.random() * 9000)}`;
         const model = cleanVeh.replace(/\([^)]+\)/, '').trim() || 'Veículo Adicional';
@@ -561,7 +560,7 @@ export default function App() {
           createdAt: todayStr
         };
         localVehicles.push(found);
-        vehiclesToUpsert.push(found);
+        vehiclesToUpsert.set(found.id, found);
       }
       return found;
     };
@@ -586,7 +585,7 @@ export default function App() {
           createdAt: todayStr
         };
         localDrivers.push(found);
-        driversToUpsert.push(found);
+        driversToUpsert.set(found.id, found);
       }
       return found.name;
     };
@@ -608,7 +607,7 @@ export default function App() {
           contactPhone: '(19) 3855-4000'
         };
         localCities.push(newCity);
-        citiesToUpsert.push(newCity);
+        citiesToUpsert.set(newCity.id, newCity);
       }
     };
 
@@ -635,12 +634,16 @@ export default function App() {
           specialties: ['TFD Geral']
         };
         localDestinations.push(newDest);
-        destinationsToUpsert.push(newDest);
+        destinationsToUpsert.set(newDest.id, newDest);
       }
     };
 
     // Process all spreadsheet rows (merge with existing trips, preserving manually registered data)
-    let updatedTrips: Trip[] = [...trips];
+    let totalRowsProcessed = rowsToProcess.length;
+    let totalPatientsAdded = 0;
+    let totalPatientsUpdated = 0;
+    let totalCompanionsAdded = 0;
+    let totalNewBookings = 0;
 
     rowsToProcess.forEach((row, idx) => {
       const parsedPat = patientsFromRows[idx];
@@ -649,7 +652,6 @@ export default function App() {
       const destCity = (row.cidadeDestino || row.destino || 'Campinas').trim();
       const destHospital = (row.destino || destCity).trim();
 
-      // Validate City against official list (STRICT)
       const officialCity = localCities.find(c => 
         c.cityName.toUpperCase().trim() === destCity.toUpperCase().trim() || 
         destCity.toUpperCase().trim().includes(c.cityName.toUpperCase().trim()) ||
@@ -659,40 +661,31 @@ export default function App() {
       const validatedCityName = officialCity ? officialCity.cityName : destCity;
       const validatedHospitalName = destHospital;
 
-      // Ensure Destination & City exists (runs for all rows)
       getOrAddDestination(validatedHospitalName, validatedCityName);
-
-      // Find or register vehicle & driver (runs for all rows)
       const targetVehicle = getOrAddVehicle(row.veiculo || '');
       const driverName = getOrAddDriver(row.motorista || '');
 
-      // Upsert/Merge patient (runs for all rows)
+      // Upsert/Merge patient
       let existingPat = localPatients.find(p => 
         (parsedPat.cpf && p.cpf === parsedPat.cpf) || 
         (p.name.toLowerCase().trim() === parsedPat.name.toLowerCase().trim())
       );
 
       if (existingPat) {
-        existingPat = {
-          ...existingPat,
-          susCard: parsedPat.susCard || existingPat.susCard,
-          birthDate: parsedPat.birthDate || existingPat.birthDate,
-          phone: parsedPat.phone || existingPat.phone,
-          whatsapp: parsedPat.whatsapp || existingPat.whatsapp,
-          address: parsedPat.address || existingPat.address,
-          boardingAddress: parsedPat.boardingAddress || existingPat.boardingAddress || existingPat.address,
-          procedureTime: parsedPat.procedureTime || existingPat.procedureTime,
-          companionRequired: parsedPat.companionRequired !== undefined ? parsedPat.companionRequired : existingPat.companionRequired,
-          companionName: parsedPat.companionName || existingPat.companionName,
-          companionBirthDate: parsedPat.companionBirthDate || existingPat.companionBirthDate,
-          companionCpf: parsedPat.companionCpf || existingPat.companionCpf,
-          companionAddress: parsedPat.companionAddress || existingPat.companionAddress || existingPat.boardingAddress || existingPat.address,
-          companionKinship: parsedPat.companionKinship || existingPat.companionKinship,
-          condition: parsedPat.condition || existingPat.condition,
-        };
-        localPatients = localPatients.map(p => p.id === existingPat!.id ? existingPat! : p);
-        if (!patientsToUpsert.some(p => p.id === existingPat!.id)) {
-          patientsToUpsert.push(existingPat);
+        let changed = false;
+        const mergedPat = { ...existingPat };
+        
+        // Merge missing fields or update if spreadsheet has content
+        if (parsedPat.susCard && parsedPat.susCard !== existingPat.susCard) { mergedPat.susCard = parsedPat.susCard; changed = true; }
+        if (parsedPat.birthDate && parsedPat.birthDate !== existingPat.birthDate) { mergedPat.birthDate = parsedPat.birthDate; changed = true; }
+        if (parsedPat.phone && parsedPat.phone !== existingPat.phone) { mergedPat.phone = parsedPat.phone; changed = true; }
+        if (parsedPat.address && parsedPat.address !== existingPat.address) { mergedPat.address = parsedPat.address; changed = true; }
+        
+        if (changed) {
+          existingPat = mergedPat;
+          localPatients = localPatients.map(p => p.id === mergedPat.id ? mergedPat : p);
+          patientsToUpsert.set(mergedPat.id, mergedPat);
+          totalPatientsUpdated++;
         }
       } else {
         existingPat = {
@@ -701,10 +694,11 @@ export default function App() {
           createdAt: todayStr
         };
         localPatients.push(existingPat);
-        patientsToUpsert.push(existingPat);
+        patientsToUpsert.set(existingPat.id, existingPat);
+        totalPatientsAdded++;
       }
 
-      // REGISTER COMPANION AS STANDALONE PATIENT (If requested)
+      // REGISTER COMPANION AS STANDALONE PATIENT
       if (parsedPat.companionName && parsedPat.companionName.trim().length > 3) {
         const compName = parsedPat.companionName.trim();
         const compCpf = parsedPat.companionCpf || '';
@@ -715,16 +709,11 @@ export default function App() {
         );
 
         if (existingComp) {
-          existingComp = {
-            ...existingComp,
-            birthDate: parsedPat.companionBirthDate || existingComp.birthDate,
-            cpf: compCpf || existingComp.cpf,
-            address: parsedPat.companionAddress || existingComp.address,
-            boardingAddress: parsedPat.companionAddress || existingComp.boardingAddress || existingComp.address,
-          };
-          localPatients = localPatients.map(p => p.id === existingComp!.id ? existingComp! : p);
-          if (!patientsToUpsert.some(p => p.id === existingComp!.id)) {
-            patientsToUpsert.push(existingComp);
+          // Merge companion data if needed
+          if (!existingComp.cpf && compCpf) {
+            existingComp = { ...existingComp, cpf: compCpf };
+            localPatients = localPatients.map(p => p.id === existingComp!.id ? existingComp! : p);
+            patientsToUpsert.set(existingComp.id, existingComp);
           }
         } else {
           const newComp: Patient = {
@@ -744,15 +733,15 @@ export default function App() {
             createdAt: todayStr
           };
           localPatients.push(newComp);
-          patientsToUpsert.push(newComp);
+          patientsToUpsert.set(newComp.id, newComp);
+          totalCompanionsAdded++;
         }
       }
 
-      // PROCESS TRIPS ONLY FOR FUTURE/TODAY DATES
+      // PROCESS TRIPS
       const tripDate = row.dataViagem || todayStr;
       if (tripDate >= todayStr) {
-        // Check if trip already exists for this destination + date + vehicle
-        let targetTrip = updatedTrips.find(t => 
+        let targetTrip = localTrips.find(t => 
           t.destinationCity.toLowerCase().includes(validatedCityName.toLowerCase()) &&
           (t.status === 'scheduled' || t.status === 'in_route') &&
           t.departureDate === tripDate &&
@@ -807,71 +796,70 @@ export default function App() {
             destinationIds: ['dest-auto'],
             createdAt: todayStr,
           };
-          updatedTrips = [targetTrip, ...updatedTrips];
+          localTrips.push(targetTrip);
+          tripsToUpsert.set(targetTrip.id, targetTrip);
+          totalNewBookings++;
         } else {
           const existingPass = ensurePassengerArray(targetTrip.passengers);
-          if (!existingPass.some(p => p.patientId === existingPat!.id)) {
-            const updatedTripPassengers = [...existingPass, passengerItem];
-            
-            targetTrip = {
+          const cleanPatCpf = (existingPat.cpf || '').replace(/\D/g, '');
+          const cleanPatSus = (existingPat.susCard || '').replace(/\D/g, '');
+          const normPatName = (existingPat.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+          const isAlreadyBooked = existingPass.some(p => {
+            if (p.patientId && p.patientId === existingPat!.id) return true;
+            const pCpf = (p.patientCpf || '').replace(/\D/g, '');
+            if (cleanPatCpf.length === 11 && pCpf === cleanPatCpf) return true;
+            const pSus = (p.patientSus || '').replace(/\D/g, '');
+            if (cleanPatSus.length >= 14 && pSus === cleanPatSus) return true;
+            const pName = (p.patientName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            if (normPatName.length >= 2 && pName === normPatName) return true;
+            return false;
+          });
+
+          if (!isAlreadyBooked) {
+            const updatedTrip = {
               ...targetTrip,
-              passengers: updatedTripPassengers,
+              passengers: [...existingPass, passengerItem],
               destinationHospital: targetTrip.destinationHospital || validatedHospitalName,
-              status: 'scheduled',
             };
-            updatedTrips = updatedTrips.map(t => t.id === targetTrip!.id ? targetTrip! : t);
+            localTrips = localTrips.map(t => t.id === targetTrip!.id ? updatedTrip : t);
+            tripsToUpsert.set(updatedTrip.id, updatedTrip);
+            totalNewBookings++;
           }
         }
       }
     });
 
-    // Final sorting of patients alphabetically by name (MANDATORY REQUIREMENT)
+    // Final sorting
     localPatients.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    localTrips.sort((a, b) => a.departureDate.localeCompare(b.departureDate));
 
-    // Final sorting of trips by date (asc)
-    updatedTrips.sort((a, b) => a.departureDate.localeCompare(b.departureDate));
-
-    // Save states locally (only React state update, NO localStorage)
+    // Update React states
     setPatients(localPatients);
     setVehicles(localVehicles);
     setDrivers(localDrivers);
     setDestinations(localDestinations);
     setDestinationCities(localCities);
-    setTrips(updatedTrips);
+    setTrips(localTrips);
 
-    // Sync everything to Supabase
+    // Sync ONLY CHANGED items to Supabase
     try {
-      const itemsToUpsert: { collectionName: string; id: string; data: any }[] = [];
+      const itemsToSync: { collectionName: string; id: string; data: any }[] = [];
+      patientsToUpsert.forEach(p => itemsToSync.push({ collectionName: 'patients', id: p.id, data: p }));
+      vehiclesToUpsert.forEach(v => itemsToSync.push({ collectionName: 'vehicles', id: v.id, data: v }));
+      driversToUpsert.forEach(d => itemsToSync.push({ collectionName: 'drivers', id: d.id, data: d }));
+      destinationsToUpsert.forEach(d => itemsToSync.push({ collectionName: 'destinations', id: d.id, data: d }));
+      tripsToUpsert.forEach(t => itemsToSync.push({ collectionName: 'trips', id: t.id, data: t }));
 
-      localPatients.forEach(p => {
-        itemsToUpsert.push({ collectionName: 'patients', id: p.id, data: p });
-      });
+      await performBatchWrite(itemsToSync, []);
+      if (citiesToUpsert.size > 0) {
+        await updateDestinationCitiesFirestore(localCities);
+      }
 
-      localVehicles.forEach(v => {
-        itemsToUpsert.push({ collectionName: 'vehicles', id: v.id, data: v });
-      });
-
-      localDrivers.forEach(d => {
-        itemsToUpsert.push({ collectionName: 'drivers', id: d.id, data: d });
-      });
-
-      localDestinations.forEach(d => {
-        itemsToUpsert.push({ collectionName: 'destinations', id: d.id, data: d });
-      });
-
-      updatedTrips.forEach(t => {
-        itemsToUpsert.push({ collectionName: 'trips', id: t.id, data: t });
-      });
-
-      await Promise.all([
-        performBatchWrite(itemsToUpsert, []),
-        localCities.length > 0 ? updateDestinationCitiesFirestore(localCities) : Promise.resolve()
-      ]);
-
-      showToast(`Planilha importada! ${localPatients.length} pessoas cadastradas. Viagens futuras sincronizadas com sucesso no Supabase!`, 'success');
+      showToast(`Importação incremental concluída! ${totalRowsProcessed} linhas analisadas. Adicionados: ${totalPatientsAdded} pacientes e ${totalNewBookings} agendamentos. Atualizados: ${totalPatientsUpdated} pacientes.`, 'success');
     } catch (err) {
-      console.error('Error synchronizing spreadsheet data to Supabase:', err);
-      showToast('Importação concluída localmente. Erro ao sincronizar com a nuvem.', 'error');
+      console.error('Error in incremental sync:', err);
+      showToast('Importação concluída localmente. Erro ao sincronizar novos dados.', 'error');
     }
   };
 
@@ -986,9 +974,49 @@ export default function App() {
     const targetTrip = trips.find((t) => t.id === tripId);
     if (!targetTrip) return;
 
+    const currentPassengers = ensurePassengerArray(targetTrip.passengers);
+    const cleanNewCpf = (newPassenger.patientCpf || '').replace(/\D/g, '');
+    const cleanNewSus = (newPassenger.patientSus || '').replace(/\D/g, '');
+    const normNewName = (newPassenger.patientName || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
+    // Check if passenger is already booked on this trip
+    const existingIndex = currentPassengers.findIndex((p) => {
+      if (p.patientId && p.patientId === newPassenger.patientId) return true;
+      const pCpf = (p.patientCpf || '').replace(/\D/g, '');
+      if (cleanNewCpf.length === 11 && pCpf === cleanNewCpf) return true;
+      const pSus = (p.patientSus || '').replace(/\D/g, '');
+      if (cleanNewSus.length >= 14 && pSus === cleanNewSus) return true;
+      const pName = (p.patientName || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+      if (normNewName.length >= 2 && pName === normNewName) return true;
+      return false;
+    });
+
+    let updatedPassengers: TripPassenger[];
+    if (existingIndex >= 0) {
+      updatedPassengers = [...currentPassengers];
+      updatedPassengers[existingIndex] = {
+        ...updatedPassengers[existingIndex],
+        ...newPassenger,
+        id: updatedPassengers[existingIndex].id,
+        bookingCode: updatedPassengers[existingIndex].bookingCode || newPassenger.bookingCode,
+      };
+      showToast(`Agendamento do paciente ${newPassenger.patientName} atualizado nesta viagem!`);
+    } else {
+      updatedPassengers = [...currentPassengers, newPassenger];
+      showToast(`Agendamento realizado! Código: ${newPassenger.bookingCode}`);
+    }
+
     const updatedTrip: Trip = {
       ...targetTrip,
-      passengers: [...ensurePassengerArray(targetTrip.passengers), newPassenger],
+      passengers: updatedPassengers,
     };
 
     setTrips(trips.map((t) => (t.id === tripId ? updatedTrip : t)));
@@ -997,8 +1025,6 @@ export default function App() {
     setIsBookingModalOpen(false);
     setPreselectedTripId(undefined);
     setPreselectedPatientId(undefined);
-
-    showToast(`Agendamento realizado! Código: ${newPassenger.bookingCode}`);
 
     setTicketToPrint({
       trip: updatedTrip,
@@ -1100,6 +1126,431 @@ export default function App() {
     } catch (error: any) {
       console.error('Clear trips error:', error);
       showToast('Erro ao limpar viagens na nuvem.', 'error');
+    }
+  };
+
+  const handleCleanupPatients = async () => {
+    if (patients.length === 0) {
+      showToast('Nenhum paciente cadastrado.', 'info');
+      return;
+    }
+
+    const normalizeString = (str: string) => 
+      (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    const groups = new Map<string, Patient[]>();
+
+    patients.forEach(p => {
+      const cleanCpf = (p.cpf || '').replace(/\D/g, '');
+      const cleanSus = (p.susCard || '').replace(/\D/g, '');
+      const normName = normalizeString(p.name);
+
+      let key = '';
+      if (cleanCpf.length === 11) {
+        key = `cpf_${cleanCpf}`;
+      } else if (cleanSus.length >= 14) {
+        key = `sus_${cleanSus}`;
+      } else if (normName.length >= 2) {
+        key = `name_${normName}`;
+      } else {
+        key = `id_${p.id}`;
+      }
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(p);
+    });
+
+    const canonicalPatients: Patient[] = [];
+    const duplicatesToRemove: string[] = [];
+    const idRemap = new Map<string, string>();
+
+    groups.forEach((group) => {
+      if (group.length === 1) {
+        canonicalPatients.push(group[0]);
+      } else {
+        // Sort group to pick canonical candidate with most filled fields
+        group.sort((a, b) => {
+          const scoreA = (a.cpf ? 2 : 0) + (a.susCard ? 2 : 0) + (a.phone ? 1 : 0) + (a.address ? 1 : 0) + (a.companionName ? 1 : 0);
+          const scoreB = (b.cpf ? 2 : 0) + (b.susCard ? 2 : 0) + (b.phone ? 1 : 0) + (b.address ? 1 : 0) + (b.companionName ? 1 : 0);
+          return scoreB - scoreA;
+        });
+
+        const canonical = { ...group[0] };
+        
+        // Merge missing fields from duplicates
+        for (let i = 1; i < group.length; i++) {
+          const dup = group[i];
+          duplicatesToRemove.push(dup.id);
+          idRemap.set(dup.id, canonical.id);
+
+          if (!canonical.cpf && dup.cpf) canonical.cpf = dup.cpf;
+          if (!canonical.susCard && dup.susCard) canonical.susCard = dup.susCard;
+          if (!canonical.birthDate && dup.birthDate) canonical.birthDate = dup.birthDate;
+          if (!canonical.phone && dup.phone) canonical.phone = dup.phone;
+          if (!canonical.whatsapp && dup.whatsapp) canonical.whatsapp = dup.whatsapp;
+          if (!canonical.address && dup.address) canonical.address = dup.address;
+          if (!canonical.boardingAddress && dup.boardingAddress) canonical.boardingAddress = dup.boardingAddress;
+          if (!canonical.companionName && dup.companionName) {
+            canonical.companionName = dup.companionName;
+            canonical.companionRequired = dup.companionRequired;
+            canonical.companionCpf = dup.companionCpf;
+            canonical.companionBirthDate = dup.companionBirthDate;
+          }
+        }
+
+        canonicalPatients.push(canonical);
+      }
+    });
+
+    if (duplicatesToRemove.length === 0) {
+      showToast('Nenhum paciente duplicado foi encontrado no cadastro.', 'info');
+      return;
+    }
+
+    // Sort canonical patients alphabetically by name
+    canonicalPatients.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+    // Update trips if any passenger referenced a deleted duplicate ID
+    let updatedTrips = trips;
+    if (idRemap.size > 0) {
+      updatedTrips = trips.map(t => {
+        const passList = ensurePassengerArray(t.passengers);
+        let changed = false;
+        const newPassList = passList.map(p => {
+          if (idRemap.has(p.patientId)) {
+            changed = true;
+            return { ...p, patientId: idRemap.get(p.patientId)! };
+          }
+          return p;
+        });
+        return changed ? { ...t, passengers: newPassList } : t;
+      });
+    }
+
+    // Update React state
+    setPatients(canonicalPatients);
+    setTrips(updatedTrips);
+
+    // Sync to Supabase
+    try {
+      const itemsToUpsert = canonicalPatients.map(p => ({ collectionName: 'patients', id: p.id, data: p }));
+      const itemsToDelete = duplicatesToRemove.map(id => ({ collectionName: 'patients', id }));
+
+      await performBatchWrite(itemsToUpsert, itemsToDelete);
+
+      showToast(`Limpeza concluída! ${duplicatesToRemove.length} registros repetidos foram removidos. Cadastro unificado com ${canonicalPatients.length} pacientes.`, 'success');
+    } catch (err) {
+      console.error('Error during patient deduplication:', err);
+      showToast('Pacientes limpos localmente. Erro ao sincronizar com a nuvem.', 'error');
+    }
+  };
+
+  const handleCleanupTrips = async () => {
+    if (trips.length === 0) {
+      showToast('Nenhuma viagem cadastrada para analisar.', 'info');
+      return;
+    }
+
+    const normalizeStr = (str: string) => 
+      (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    const cleanDigits = (str: string) => (str || '').replace(/\D/g, '');
+
+    const cleanCityName = (cityStr: string) => {
+      const base = (cityStr || '').split('-')[0].trim();
+      return normalizeStr(base);
+    };
+
+    let totalPassengersRemoved = 0;
+    let totalDuplicateTripsMerged = 0;
+    const tripsToUpsert: Trip[] = [];
+    const tripIdsToDelete: string[] = [];
+
+    // ==========================================
+    // STAGE 1: Group and Merge Duplicate Trips
+    // (Trips on same departure date with same base destination city & vehicle/time)
+    // ==========================================
+    const tripGroupMap = new Map<string, Trip[]>();
+
+    trips.forEach(t => {
+      const date = t.departureDate || '';
+      const cityKey = cleanCityName(t.destinationCity);
+      const vehicleKey = (t.vehicleId || '').trim();
+      const timeKey = (t.departureTime || '').trim().slice(0, 5);
+      
+      const key = `${date}_${cityKey}_${vehicleKey || timeKey}`;
+
+      if (!tripGroupMap.has(key)) {
+        tripGroupMap.set(key, []);
+      }
+      tripGroupMap.get(key)!.push(t);
+    });
+
+    const mergedTrips: Trip[] = [];
+
+    tripGroupMap.forEach((group) => {
+      if (group.length === 1) {
+        mergedTrips.push(group[0]);
+      } else {
+        // Sort group: scheduled or in_route first, then most passengers
+        group.sort((a, b) => {
+          const passA = ensurePassengerArray(a.passengers).length;
+          const passB = ensurePassengerArray(b.passengers).length;
+          return passB - passA;
+        });
+
+        const canonicalTrip = { ...group[0] };
+        const combinedPass = [...ensurePassengerArray(canonicalTrip.passengers)];
+
+        for (let i = 1; i < group.length; i++) {
+          const dupTrip = group[i];
+          tripIdsToDelete.push(dupTrip.id);
+          totalDuplicateTripsMerged++;
+
+          const dupPassengers = ensurePassengerArray(dupTrip.passengers);
+          dupPassengers.forEach(dp => {
+            combinedPass.push(dp);
+          });
+        }
+
+        canonicalTrip.passengers = combinedPass;
+        mergedTrips.push(canonicalTrip);
+      }
+    });
+
+    // ==========================================
+    // STAGE 2: Deduplicate passengers inside each trip using Disjoint Set (Union-Find)
+    // ==========================================
+    const tripsAfterInternalDeduplication = mergedTrips.map(t => {
+      const passList = ensurePassengerArray(t.passengers);
+      if (passList.length <= 1) return t;
+
+      const N = passList.length;
+      const parent = Array.from({ length: N }, (_, i) => i);
+
+      const find = (i: number): number => {
+        if (parent[i] === i) return i;
+        parent[i] = find(parent[i]);
+        return parent[i];
+      };
+
+      const union = (i: number, j: number) => {
+        const rootI = find(i);
+        const rootJ = find(j);
+        if (rootI !== rootJ) {
+          parent[rootI] = rootJ;
+        }
+      };
+
+      for (let i = 0; i < N; i++) {
+        for (let j = i + 1; j < N; j++) {
+          const p1 = passList[i];
+          const p2 = passList[j];
+
+          const cpf1 = cleanDigits(p1.patientCpf);
+          const cpf2 = cleanDigits(p2.patientCpf);
+
+          const sus1 = cleanDigits(p1.patientSus);
+          const sus2 = cleanDigits(p2.patientSus);
+
+          const name1 = normalizeStr(p1.patientName);
+          const name2 = normalizeStr(p2.patientName);
+
+          const id1 = p1.patientId || '';
+          const id2 = p2.patientId || '';
+
+          let isSamePerson = false;
+
+          if (id1 && id2 && id1 === id2) {
+            isSamePerson = true;
+          } else if (cpf1.length === 11 && cpf2.length === 11 && cpf1 === cpf2) {
+            isSamePerson = true;
+          } else if (sus1.length >= 10 && sus2.length >= 10 && sus1 === sus2) {
+            isSamePerson = true;
+          } else if (
+            name1.length >= 3 && 
+            name2.length >= 3 && 
+            !['paciente', 'n/a', 'sem nome', 'desconhecido'].includes(name1)
+          ) {
+            if (name1 === name2) {
+              isSamePerson = true;
+            } else if (name1.length >= 6 && name2.length >= 6 && (name1.includes(name2) || name2.includes(name1))) {
+              isSamePerson = true;
+            } else {
+              const words1 = name1.split(/\s+/).filter(w => w.length > 2);
+              const words2 = name2.split(/\s+/).filter(w => w.length > 2);
+              if (words1.length >= 2 && words2.length >= 2) {
+                const firstLast1 = `${words1[0]}_${words1[words1.length - 1]}`;
+                const firstLast2 = `${words2[0]}_${words2[words2.length - 1]}`;
+                if (firstLast1 === firstLast2) {
+                  isSamePerson = true;
+                }
+              }
+            }
+          }
+
+          if (isSamePerson) {
+            union(i, j);
+          }
+        }
+      }
+
+      // Group passengers by disjoint set root
+      const groupsMap = new Map<number, TripPassenger[]>();
+      for (let i = 0; i < N; i++) {
+        const root = find(i);
+        if (!groupsMap.has(root)) {
+          groupsMap.set(root, []);
+        }
+        groupsMap.get(root)!.push(passList[i]);
+      }
+
+      const deduplicatedPass: TripPassenger[] = [];
+
+      groupsMap.forEach((group) => {
+        if (group.length === 1) {
+          deduplicatedPass.push(group[0]);
+        } else {
+          totalPassengersRemoved += (group.length - 1);
+
+          // Sort group to pick canonical passenger (preferring complete data)
+          group.sort((a, b) => {
+            const scoreA = (a.companionIncluded ? 4 : 0) + (a.notes ? 2 : 0) + (a.bookingCode ? 1 : 0) + (a.patientCpf ? 1 : 0);
+            const scoreB = (b.companionIncluded ? 4 : 0) + (b.notes ? 2 : 0) + (b.bookingCode ? 1 : 0) + (b.patientCpf ? 1 : 0);
+            return scoreB - scoreA;
+          });
+
+          const canonical = { ...group[0] };
+
+          // Merge missing properties from other duplicates
+          for (let k = 1; k < group.length; k++) {
+            const dup = group[k];
+            if (!canonical.patientCpf && dup.patientCpf) canonical.patientCpf = dup.patientCpf;
+            if (!canonical.patientSus && dup.patientSus) canonical.patientSus = dup.patientSus;
+            if (!canonical.patientPhone && dup.patientPhone) canonical.patientPhone = dup.patientPhone;
+            if (!canonical.patientAddress && dup.patientAddress) canonical.patientAddress = dup.patientAddress;
+            if (!canonical.appointmentTime && dup.appointmentTime) canonical.appointmentTime = dup.appointmentTime;
+            if (!canonical.appointmentType && dup.appointmentType) canonical.appointmentType = dup.appointmentType;
+            if (!canonical.notes && dup.notes) canonical.notes = dup.notes;
+            if (!canonical.companionIncluded && dup.companionIncluded) {
+              canonical.companionIncluded = true;
+              canonical.companionName = dup.companionName;
+              canonical.companionCpf = dup.companionCpf;
+              canonical.companionBirthDate = dup.companionBirthDate;
+              canonical.companionKinship = dup.companionKinship;
+              canonical.companionAddress = dup.companionAddress;
+            }
+          }
+
+          deduplicatedPass.push(canonical);
+        }
+      });
+
+      return {
+        ...t,
+        passengers: deduplicatedPass
+      };
+    });
+
+    // ==========================================
+    // STAGE 3: Remove duplicate passenger bookings across DIFFERENT trips on the SAME departure date
+    // ==========================================
+    const seenPassengersPerDate = new Map<string, Set<string>>();
+
+    const finalTrips = tripsAfterInternalDeduplication.map(t => {
+      const date = t.departureDate || '';
+      if (!seenPassengersPerDate.has(date)) {
+        seenPassengersPerDate.set(date, new Set<string>());
+      }
+      const seenSet = seenPassengersPerDate.get(date)!;
+
+      const currentPass = ensurePassengerArray(t.passengers);
+      const filteredPass: TripPassenger[] = [];
+
+      currentPass.forEach(p => {
+        const cpf = cleanDigits(p.patientCpf);
+        const sus = cleanDigits(p.patientSus);
+        const normName = normalizeStr(p.patientName);
+        const patId = p.patientId || '';
+
+        // Form unique identity keys for date level check
+        const keys: string[] = [];
+        if (patId) keys.push(`id_${patId}`);
+        if (cpf.length === 11) keys.push(`cpf_${cpf}`);
+        if (sus.length >= 10) keys.push(`sus_${sus}`);
+        if (normName.length >= 3 && !['paciente', 'n/a', 'sem nome', 'desconhecido'].includes(normName)) {
+          keys.push(`name_${normName}`);
+        }
+
+        const isDuplicateDateBooking = keys.some(k => seenSet.has(k));
+
+        if (isDuplicateDateBooking) {
+          totalPassengersRemoved++;
+        } else {
+          // Add keys to seenSet
+          keys.forEach(k => seenSet.add(k));
+          filteredPass.push(p);
+        }
+      });
+
+      // Reassign seat numbers for remaining passengers
+      let currentSeat = 1;
+      const reindexed = filteredPass.map(p => {
+        const seatNumber = currentSeat;
+        currentSeat++;
+        let companionSeatNumber = undefined;
+        if (p.companionIncluded) {
+          companionSeatNumber = currentSeat;
+          currentSeat++;
+        }
+        return {
+          ...p,
+          seatNumber,
+          companionSeatNumber
+        };
+      });
+
+      const updatedTrip = {
+        ...t,
+        passengers: reindexed
+      };
+
+      if (currentPass.length !== reindexed.length || tripIdsToDelete.includes(t.id)) {
+        tripsToUpsert.push(updatedTrip);
+      }
+
+      return updatedTrip;
+    });
+
+    if (totalPassengersRemoved === 0 && totalDuplicateTripsMerged === 0) {
+      showToast('Nenhum passageiro ou viagem duplicada foi encontrada nas viagens.', 'info');
+      return;
+    }
+
+    // Update React State
+    setTrips(finalTrips);
+
+    // Sync to Supabase
+    try {
+      const itemsToUpsert = tripsToUpsert.map(t => ({ collectionName: 'trips', id: t.id, data: t }));
+      const itemsToDelete = tripIdsToDelete.map(id => ({ collectionName: 'trips', id }));
+
+      await performBatchWrite(itemsToUpsert, itemsToDelete);
+
+      let msg = `Ajuste concluído com sucesso! `;
+      if (totalPassengersRemoved > 0) {
+        msg += `${totalPassengersRemoved} registro(s) de passageiro repetido removido(s). `;
+      }
+      if (totalDuplicateTripsMerged > 0) {
+        msg += `${totalDuplicateTripsMerged} viagem(ns) duplicada(s) unificada(s).`;
+      }
+
+      showToast(msg, 'success');
+    } catch (err) {
+      console.error('Error during trip deduplication:', err);
+      showToast('Viagens ajustadas localmente. Erro ao sincronizar com a nuvem.', 'error');
     }
   };
 
@@ -1423,6 +1874,7 @@ export default function App() {
               setIsTripModalOpen(true);
             }}
             onCancelBooking={handleCancelBooking}
+            onCleanupTrips={handleCleanupTrips}
             isAdmin={isAdmin}
           />
         )}
@@ -1455,6 +1907,7 @@ export default function App() {
             onPrintClosure={triggerPrintClosure}
             onPrintPassengerTicket={triggerPrintPassengerTicket}
             onRemoveCompanion={handleRemoveCompanion}
+            onCleanupTrips={handleCleanupTrips}
           />
         )}
 
@@ -1470,6 +1923,7 @@ export default function App() {
             }}
             onPrintTicket={triggerPrintPassengerTicket}
             onCancelBooking={handleCancelBooking}
+            onCleanupTrips={handleCleanupTrips}
           />
         )}
 
@@ -1487,12 +1941,13 @@ export default function App() {
               setIsPatientModalOpen(true);
             }}
             onDeletePatient={handleDeletePatient}
-            onOpenNewBookingModalWithPatient={(patientId) => {
+            onOpenNewBookingModalWithPatient={(patientId, tripId) => {
               setPreselectedPatientId(patientId);
-              setPreselectedTripId(undefined);
+              setPreselectedTripId(tripId);
               setIsBookingModalOpen(true);
             }}
             onOpenImportExcelModal={() => setIsExcelImportModalOpen(true)}
+            onCleanupPatients={handleCleanupPatients}
             isAdmin={isAdmin}
           />
         )}
@@ -1710,6 +2165,7 @@ export default function App() {
           onClearTripsOnly={isAdmin ? handleClearTripsOnly : undefined}
           onCleanupDestinations={handleCleanupDestinations}
           onCleanupCities={handleCleanupCities}
+          onCleanupPatients={handleCleanupPatients}
           onClose={() => setIsExcelImportModalOpen(false)}
         />
       )}

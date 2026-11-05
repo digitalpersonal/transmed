@@ -11,9 +11,15 @@ export const BoardingAddressesView: React.FC<BoardingAddressesViewProps> = ({ pa
   const [searchTerm, setSearchTerm] = useState('');
   const [editingPatient, setEditingPatient] = useState<Record<string, Partial<Patient>>>({});
 
-  const filteredPatients = patients.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPatients = patients.filter((p) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (term.length < 3) return true;
+    return (
+      p.name.toLowerCase().includes(term) ||
+      (p.boardingAddress || p.address || '').toLowerCase().includes(term) ||
+      (p.companionAddress || '').toLowerCase().includes(term)
+    );
+  });
 
   const handleUpdate = async (p: Patient) => {
     const changes = editingPatient[p.id];

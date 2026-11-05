@@ -41,6 +41,7 @@ interface TripsViewProps {
   onPrintClosure: (trip: Trip) => void;
   onPrintPassengerTicket: (trip: Trip, passengerId: string) => void;
   onRemoveCompanion?: (tripId: string, passengerId: string) => void;
+  onCleanupTrips?: () => void;
 }
 
 export const TripsView: React.FC<TripsViewProps> = ({
@@ -57,6 +58,7 @@ export const TripsView: React.FC<TripsViewProps> = ({
   onPrintClosure,
   onPrintPassengerTicket,
   onRemoveCompanion,
+  onCleanupTrips,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -75,23 +77,57 @@ export const TripsView: React.FC<TripsViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 20;
 
+  const [dateFilter, setDateFilter] = useState<string>('');
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | 'tomorrow' | 'week'>('all');
+
   const filteredTrips = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const tomorrowObj = new Date();
+    tomorrowObj.setDate(tomorrowObj.getDate() + 1);
+    const tomorrowStr = tomorrowObj.toISOString().slice(0, 10);
+
+    const nextWeekObj = new Date();
+    nextWeekObj.setDate(nextWeekObj.getDate() + 7);
+    const nextWeekStr = nextWeekObj.toISOString().slice(0, 10);
+
     const filtered = trips.filter((t) => {
       const term = searchTerm.toLowerCase().trim();
+      const dateBr = formatDateBR(t.departureDate);
+      const dateBrShort = dateBr.slice(0, 5); // e.g. 15/05
+      const dateIso = t.departureDate || '';
+
       const matchSearch =
         !term ||
         (t.code || '').toLowerCase().includes(term) ||
         (t.destinationCity || '').toLowerCase().includes(term) ||
+        (t.destinationHospital || '').toLowerCase().includes(term) ||
         (t.driverName || '').toLowerCase().includes(term) ||
         (t.departureLocation || '').toLowerCase().includes(term) ||
+        dateIso.includes(term) ||
+        dateBr.includes(term) ||
+        dateBrShort.includes(term) ||
+        (term === 'hoje' && dateIso === todayStr) ||
+        (term === 'amanha' && dateIso === tomorrowStr) ||
+        (term === 'amanhã' && dateIso === tomorrowStr) ||
         ensurePassengerArray(t.passengers).some((p) => (p.patientName || '').toLowerCase().includes(term));
 
       let matchStatus = false;
       if (statusFilter === 'all') matchStatus = true;
       else if (statusFilter === 'open') matchStatus = t.status === 'scheduled' || t.status === 'in_route';
       else matchStatus = t.status === statusFilter;
+
+      let matchDate = true;
+      if (dateFilter) {
+        matchDate = t.departureDate === dateFilter;
+      } else if (datePreset === 'today') {
+        matchDate = t.departureDate === todayStr;
+      } else if (datePreset === 'tomorrow') {
+        matchDate = t.departureDate === tomorrowStr;
+      } else if (datePreset === 'week') {
+        matchDate = t.departureDate >= todayStr && t.departureDate <= nextWeekStr;
+      }
       
-      return matchSearch && matchStatus;
+      return matchSearch && matchStatus && matchDate;
     });
 
     return filtered.sort((a, b) => {
@@ -113,7 +149,7 @@ export const TripsView: React.FC<TripsViewProps> = ({
 
       return (a.departureDate || '').localeCompare(b.departureDate || '');
     });
-  }, [trips, searchTerm, statusFilter]);
+  }, [trips, searchTerm, statusFilter, dateFilter, datePreset]);
 
   const totalPages = Math.ceil(filteredTrips.length / PAGE_SIZE);
   const displayedTrips = useMemo(() => 
@@ -135,43 +171,141 @@ export const TripsView: React.FC<TripsViewProps> = ({
           </p>
         </div>
 
-        <button
-          id="btn-trips-new"
-          onClick={onOpenNewTripModal}
-          className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Agendar Nova Viagem</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {onCleanupTrips && (
+            <button
+              type="button"
+              onClick={() => onCleanupTrips()}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-xs font-bold border border-amber-300 transition-colors cursor-pointer"
+              title="Unifica passageiros duplicados nas viagens e recalcula assentos"
+            >
+              <UserCheck className="w-4 h-4 text-amber-700" />
+              <span>Limpar Passageiros Duplicados</span>
+            </button>
+          )}
+
+          <button
+            id="btn-trips-new"
+            onClick={onOpenNewTripModal}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Agendar Nova Viagem</span>
+          </button>
+        </div>
       </div>
 
       {/* Filters Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
-        <div className="flex-1 min-w-[240px] relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            placeholder="Buscar por código, cidade destino, paciente ou motorista..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-slate-800"
-          />
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex-1 min-w-[240px] relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Buscar por código, cidade, hospital, motorista, paciente ou data (ex: 15/05)..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-slate-800"
+            />
+          </div>
+
+          {/* Campo Seletor Específico de Data da Viagem */}
+          <div className="flex items-center gap-1.5 bg-emerald-50/70 border border-emerald-300 px-3 py-1 rounded-lg text-xs">
+            <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span className="font-bold text-emerald-900 text-[11px] uppercase shrink-0">Data:</span>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => {
+                setDateFilter(e.target.value);
+                setDatePreset('all');
+              }}
+              className="bg-transparent text-slate-900 font-bold focus:outline-none cursor-pointer text-xs"
+            />
+            {dateFilter && (
+              <button
+                type="button"
+                onClick={() => setDateFilter('')}
+                className="text-slate-400 hover:text-rose-600 font-bold ml-1 cursor-pointer text-xs"
+                title="Limpar filtro de data"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-800 bg-white font-medium focus:outline-slate-800"
+            >
+              <option value="open">Somente Viagens em Aberto</option>
+              <option value="all">Todos os Status</option>
+              <option value="scheduled">Apenas Agendadas</option>
+              <option value="in_route">Apenas Em Rota</option>
+              <option value="completed">Concluídas / Fechadas</option>
+              <option value="cancelled">Canceladas</option>
+            </select>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-800 bg-white font-medium focus:outline-slate-800"
-          >
-            <option value="open">Somente Viagens em Aberto</option>
-            <option value="all">Todos os Status</option>
-            <option value="scheduled">Apenas Agendadas</option>
-            <option value="in_route">Apenas Em Rota</option>
-            <option value="completed">Concluídas / Fechadas</option>
-            <option value="cancelled">Canceladas</option>
-          </select>
+        {/* Botões Rápidos de Preset de Data */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Filtrar por Período:</span>
+            <button
+              type="button"
+              onClick={() => { setDatePreset('all'); setDateFilter(''); }}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                datePreset === 'all' && !dateFilter
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Todas as Datas ({trips.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDatePreset('today'); setDateFilter(''); }}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                datePreset === 'today' && !dateFilter
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'
+              }`}
+            >
+              📅 Hoje
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDatePreset('tomorrow'); setDateFilter(''); }}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                datePreset === 'tomorrow' && !dateFilter
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'bg-emerald-50 text-emerald-900 border border-emerald-200 hover:bg-emerald-100'
+              }`}
+            >
+              Amanhã
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDatePreset('week'); setDateFilter(''); }}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                datePreset === 'week' && !dateFilter
+                  ? 'bg-sky-700 text-white shadow-xs'
+                  : 'bg-sky-50 text-sky-900 border border-sky-200 hover:bg-sky-100'
+              }`}
+            >
+              Próximos 7 Dias
+            </button>
+          </div>
+
+          {(dateFilter || datePreset !== 'all' || searchTerm || statusFilter !== 'open') && (
+            <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+              {filteredTrips.length} viagem(ns) encontrada(s)
+            </span>
+          )}
         </div>
       </div>
 

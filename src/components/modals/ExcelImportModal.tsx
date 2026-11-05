@@ -10,6 +10,7 @@ interface ExcelImportModalProps {
   onClearTripsOnly?: () => void;
   onCleanupDestinations?: () => void;
   onCleanupCities?: () => void;
+  onCleanupPatients?: () => void;
   onClose: () => void;
 }
 
@@ -19,6 +20,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   onClearTripsOnly,
   onCleanupDestinations,
   onCleanupCities,
+  onCleanupPatients,
   onClose,
 }) => {
   const [parsedList, setParsedList] = useState<Patient[]>([]);
@@ -243,9 +245,20 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                       <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-col justify-between gap-3 shadow-xs">
                         <div>
                           <h5 className="font-bold text-emerald-900 text-xs uppercase tracking-wider">3. Limpar Duplicados</h5>
-                          <p className="text-[11px] text-emerald-700">Remover hospitais com nomes ou endereços repetidos.</p>
+                          <p className="text-[11px] text-emerald-700">Remover registros de hospitais ou pacientes repetidos.</p>
                         </div>
                         <div className="space-y-2">
+                          {onCleanupPatients && (
+                            <button
+                              type="button"
+                              onClick={onCleanupPatients}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[10px] shadow-sm cursor-pointer w-full justify-center"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Limpar Pacientes Repetidos
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={onCleanupDestinations}

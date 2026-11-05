@@ -348,30 +348,34 @@ export async function parseExcelCapturedRows(file: File): Promise<{
           return;
         }
 
-        // Localiza a linha do cabeçalho (procura termos como NOME, PACIENTE, HORARIO, CPF, SUS, WHATSAPP, etc.)
-        let headerRowIndex = 0;
-        let foundHeader = false;
-        for (let i = 0; i < Math.min(rawGrid.length, 15); i++) {
-          const rowStr = (rawGrid[i] || []).map((c) => String(c).toLowerCase()).join(' ');
-          if (
-            rowStr.includes('nome') ||
-            rowStr.includes('paciente') ||
-            rowStr.includes('cpf') ||
-            rowStr.includes('sus') ||
-            rowStr.includes('whatsapp') ||
-            rowStr.includes('telefone') ||
-            rowStr.includes('procedimento') ||
-            rowStr.includes('destino')
-          ) {
+        // Localiza a linha do cabeçalho por pontuação baseada em palavras-chave
+        const headerKeywords = [
+          'nome', 'paciente', 'cpf', 'sus', 'whatsapp', 'telefone', 'procedimento',
+          'destino', 'nascimento', 'embarque', 'acompanhante', 'veiculo', 'motorista',
+          'saida', 'horario', 'cidade', 'passageiro', 'usuario', 'solicitante'
+        ];
+
+        let headerRowIndex = -1;
+        let maxScore = 0;
+
+        for (let i = 0; i < Math.min(rawGrid.length, 20); i++) {
+          const rowCells = rawGrid[i] || [];
+          let score = 0;
+          rowCells.forEach((c) => {
+            const str = String(c).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            if (headerKeywords.some((kw) => str.includes(kw))) {
+              score++;
+            }
+          });
+          if (score > maxScore) {
+            maxScore = score;
             headerRowIndex = i;
-            foundHeader = true;
-            break;
           }
         }
 
-        // Se não achou nenhuma palavra-chave de cabeçalho nas primeiras 15 linhas, assume que a linha 0 é dados e não há cabeçalho
-        if (!foundHeader && rawGrid.length > 0) {
-          headerRowIndex = -1; // dados começam na linha 0
+        // Se nenhuma linha teve pelo menos 2 palavras-chave de cabeçalho, assume sem cabeçalho
+        if (maxScore < 2) {
+          headerRowIndex = -1;
         }
 
         const headerRow = headerRowIndex >= 0 ? (rawGrid[headerRowIndex] || []) : [];
@@ -388,24 +392,24 @@ export async function parseExcelCapturedRows(file: File): Promise<{
           }
           for (const kw of keywords) {
             const cleanKw = kw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-            const partialMatch = normalizedHeaders.findIndex((h) => h.includes(cleanKw) || cleanKw.includes(h));
+            const partialMatch = normalizedHeaders.findIndex((h) => h.includes(cleanKw) || (cleanKw.length >= 4 && h.length >= 4 && cleanKw.includes(h)));
             if (partialMatch !== -1) return partialMatch;
           }
           return defaultColIdx;
         };
 
         const colIdxMap = {
-          dataViagem: findColIdx(['data_viagem', 'dataviagem', 'data', 'data_da_viagem'], 0),
-          horarioProcedimento: findColIdx(['horario_procedimento', 'horarioprocedimento', 'horario_consulta', 'hora_procedimento', 'horario'], 1),
-          nomePaciente: findColIdx(['nome_paciente', 'nomepaciente', 'nome_completo', 'nome', 'paciente'], 2),
-          dataNascimentoPaciente: findColIdx(['data_nascimento_paciente', 'datanascimentopaciente', 'data_nascimento', 'nascimento_paciente', 'data_nasc', 'nascimento'], 3),
-          cpfPaciente: findColIdx(['cpf_paciente', 'cpfpaciente', 'cpf_pac', 'cpf'], 4),
-          cartaoSusPaciente: findColIdx(['cartao_sus_paciente', 'cartaosuspaciente', 'cartao_sus', 'cns_paciente', 'sus_paciente', 'sus', 'cns'], 5),
-          enderecoEmbarquePaciente: findColIdx(['endereco_embarque_paciente', 'enderecoembarquepaciente', 'endereco_embarque', 'endereco_paciente', 'endereco', 'embarque'], 6),
-          possuiAcompanhante: findColIdx(['possui_acompanhante', 'possuiacompanhante', 'acompanhante', 'tem_acompanhante'], 7),
-          nomeAcompanhante: findColIdx(['nome_acompanhante', 'nomeacompanhante', 'nome_acomp', 'acompanhante_nome'], 8),
-          dataNascimentoAcompanhante: findColIdx(['data_nascimento_acompanhante', 'datanascimentoacompanhante', 'nascimento_acompanhante', 'data_nasc_acomp'], 9),
-          cpfAcompanhante: findColIdx(['cpf_acompanhante', 'cpfacompanhante', 'cpf_acomp'], 10),
+          dataViagem: findColIdx(['data_viagem', 'dataviagem', 'data_da_viagem', 'data', 'dt_viagem'], 0),
+          horarioProcedimento: findColIdx(['horario_procedimento', 'horarioprocedimento', 'horario_consulta', 'hora_procedimento', 'horario_atendimento', 'horario', 'hora'], 1),
+          nomePaciente: findColIdx(['nome_paciente', 'nomepaciente', 'nome_completo', 'nomecompleto', 'nome_do_paciente', 'nomedopaciente', 'nome', 'paciente', 'pacientes', 'passageiro', 'passageiros', 'usuario', 'usuarios', 'solicitante', 'requerente', 'interessado'], 2),
+          dataNascimentoPaciente: findColIdx(['data_nascimento_paciente', 'datanascimentopaciente', 'data_nascimento', 'datanascimento', 'nascimento_paciente', 'data_nasc', 'datanasc', 'nascimento', 'dt_nasc', 'dtnasc', 'idade'], 3),
+          cpfPaciente: findColIdx(['cpf_paciente', 'cpfpaciente', 'cpf_pac', 'cpf', 'num_cpf', 'documento'], 4),
+          cartaoSusPaciente: findColIdx(['cartao_sus_paciente', 'cartaosuspaciente', 'cartao_sus', 'cartaosus', 'cns_paciente', 'sus_paciente', 'sus', 'cns', 'num_sus', 'carteira_sus'], 5),
+          enderecoEmbarquePaciente: findColIdx(['endereco_embarque_paciente', 'enderecoembarquepaciente', 'endereco_embarque', 'endereco_paciente', 'endereco', 'enderecorua', 'rua', 'logradouro', 'embarque', 'ponto_embarque', 'local_embarque'], 6),
+          possuiAcompanhante: findColIdx(['possui_acompanhante', 'possuiacompanhante', 'acompanhante', 'tem_acompanhante', 'acomp'], 7),
+          nomeAcompanhante: findColIdx(['nome_acompanhante', 'nomeacompanhante', 'nome_acomp', 'nome_do_acompanhante', 'acompanhante_nome'], 8),
+          dataNascimentoAcompanhante: findColIdx(['data_nascimento_acompanhante', 'datanascimentoacompanhante', 'nascimento_acompanhante', 'data_nasc_acomp', 'dt_nasc_acomp'], 9),
+          cpfAcompanhante: findColIdx(['cpf_acompanhante', 'cpfacompanhante', 'cpf_acomp', 'cpf_do_acompanhante'], 10),
           enderecoEmbarqueAcompanhante: findColIdx(['endereco_embarque_acompanhante', 'enderecoembarqueacompanhante', 'endereco_acomp', 'embarque_acomp'], 11),
           whatsappPaciente: findColIdx([
             'whatsapp_paciente',
@@ -426,11 +430,12 @@ export async function parseExcelCapturedRows(file: File): Promise<{
             'contato',
             'celular',
             'telefone',
-            'fone'
+            'fone',
+            'tel'
           ], 12),
-          cidadeDestino: findColIdx(['cidade_destino', 'cidadedestino', 'cidade_do_destino', 'municipio_destino', 'cidade', 'municipio'], 13),
-          destino: findColIdx(['endereco_destino', 'enderecodestino', 'endereco_do_destino', 'hospital_destino', 'hospital_referencia', 'hospital', 'destino', 'clinica', 'especialidade', 'condicao'], 14),
-          veiculo: findColIdx(['veiculo', 'veicul', 'veiculo_placa', 'placa', 'frota'], 15),
+          cidadeDestino: findColIdx(['cidade_destino', 'cidadedestino', 'cidade_do_destino', 'municipio_destino', 'cidade', 'municipio', 'localidade'], 13),
+          destino: findColIdx(['endereco_destino', 'enderecodestino', 'endereco_do_destino', 'hospital_destino', 'hospital_referencia', 'hospital', 'destino', 'clinica', 'especialidade', 'condicao', 'local_destino'], 14),
+          veiculo: findColIdx(['veiculo', 'veicul', 'veiculo_placa', 'placa', 'frota', 'carro', 'van', 'onibus'], 15),
           motorista: findColIdx(['motorista', 'motor', 'nome_motorista', 'condutor'], 16),
           horarioSaida: findColIdx(['horario_saida', 'horariosaida', 'horarios_saida', 'hora_saida', 'saida'], 17),
         };
@@ -440,33 +445,68 @@ export async function parseExcelCapturedRows(file: File): Promise<{
 
         const startIndex = headerRowIndex >= 0 ? headerRowIndex + 1 : 0;
 
-        // Itera sobre as linhas de dados
+        const isHeaderOrSummaryText = (str: string) => {
+          const l = str.toLowerCase().trim();
+          return (
+            l === 'nome' ||
+            l === 'paciente' ||
+            l === 'nome_paciente' ||
+            l === 'nome paciente' ||
+            l === 'nome do paciente' ||
+            l === 'passageiro' ||
+            l === 'usuario' ||
+            l.startsWith('total') ||
+            l.startsWith('subtotal') ||
+            l.startsWith('resumo') ||
+            l.startsWith('observacao') ||
+            l.startsWith('observações') ||
+            l.startsWith('prefeitura') ||
+            l.startsWith('secretaria') ||
+            l.startsWith('relatorio') ||
+            l.startsWith('relatório')
+          );
+        };
+
+        // Itera sobre todas as linhas de dados
         for (let rowIdx = startIndex; rowIdx < rawGrid.length; rowIdx++) {
           const rowData = rawGrid[rowIdx] || [];
           if (!rowData || rowData.length === 0) continue;
 
+          // Se a linha toda for apenas células vazias
+          const nonCols = rowData.filter((c) => String(c || '').trim() !== '');
+          if (nonCols.length === 0) continue;
+
           const getCell = (idx: number): any => {
-            return rowData[idx] !== undefined && rowData[idx] !== null ? rowData[idx] : '';
+            return idx >= 0 && rowData[idx] !== undefined && rowData[idx] !== null ? rowData[idx] : '';
           };
 
           // Tenta pegar o nome do paciente na coluna mapeada
           let rawNome = getCell(colIdxMap.nomePaciente);
           let nomePaciente = String(rawNome || '').trim();
 
-          // Se a coluna mapeada estiver vazia ou for igual a cabeçalho, procura em outras colunas por um nome provável
-          if (!nomePaciente || nomePaciente.toLowerCase() === 'nome_paciente' || nomePaciente.toLowerCase() === 'nome' || nomePaciente.toLowerCase() === 'paciente') {
+          // Se a coluna mapeada estiver vazia ou for título de cabeçalho, procura em todas as outras colunas por um nome provável
+          if (!nomePaciente || isHeaderOrSummaryText(nomePaciente)) {
             for (let c = 0; c < rowData.length; c++) {
               const val = String(rowData[c] || '').trim();
-              // Se tiver espaço, mais de 3 letras, não for número nem data
-              if (val.length >= 3 && val.includes(' ') && !/^\d+[\/\-]\d+/.test(val) && isNaN(Number(val))) {
+              const valCleanDigits = val.replace(/\D/g, '');
+              
+              if (
+                val.length >= 2 &&
+                !isHeaderOrSummaryText(val) &&
+                !/^\d{1,4}[\/\-]\d{1,2}[\/\-]\d{1,4}$/.test(val) && // Não é data
+                !/^\d{1,2}:\d{2}$/.test(val) && // Não é horário
+                valCleanDigits.length < 8 && // Não é CPF, SUS nem telefone
+                isNaN(Number(val)) &&
+                !['sim', 'não', 'nao', 'true', 'false', 's', 'n', 'ambulante', 'cadeirante'].includes(val.toLowerCase())
+              ) {
                 nomePaciente = val;
                 break;
               }
             }
           }
 
-          // Se ainda não encontrou um nome válido, pula a linha
-          if (!nomePaciente || nomePaciente.toLowerCase() === 'nome_paciente' || nomePaciente.toLowerCase() === 'nome') {
+          // Se ainda não encontrou um nome de paciente válido ou é linha de resumo/total, ignora esta linha
+          if (!nomePaciente || isHeaderOrSummaryText(nomePaciente)) {
             continue;
           }
 
@@ -491,8 +531,8 @@ export async function parseExcelCapturedRows(file: File): Promise<{
           // 4. CPF_PACIENTE
           const rawCpfPac = String(getCell(colIdxMap.cpfPaciente) || '');
           let cpfPaciente = rawCpfPac.replace(/\D/g, '');
-          if (!cpfPaciente) {
-            // Tenta achar qualquer célula que pareça CPF na linha
+          if (!cpfPaciente || cpfPaciente.length !== 11) {
+            // Tenta achar qualquer célula que pareça CPF na linha (11 dígitos)
             for (let c = 0; c < rowData.length; c++) {
               const clean = String(rowData[c] || '').replace(/\D/g, '');
               if (clean.length === 11) {
@@ -524,7 +564,7 @@ export async function parseExcelCapturedRows(file: File): Promise<{
 
           // 8. NOME_ACOMPANHANTE
           const rawNomeAcomp = String(getCell(colIdxMap.nomeAcompanhante) || '').trim();
-          const nomeAcompanhante = rawNomeAcomp;
+          const nomeAcompanhante = isHeaderOrSummaryText(rawNomeAcomp) ? '' : rawNomeAcomp;
 
           const possuiAcompanhante =
             rawPossuiAcomp === 'SIM' ||
@@ -569,7 +609,6 @@ export async function parseExcelCapturedRows(file: File): Promise<{
             cidadeDestino = String(getCell(colIdxMap.cidadeDestino) || '').trim();
           }
           if (!cidadeDestino) {
-            // fallback: try to extract city from destino (e.g. "Hospital das Clínicas - Campinas" -> "Campinas")
             if (destino.includes(' - ')) {
               cidadeDestino = destino.split(' - ').pop() || '';
             } else if (destino.toLowerCase().includes('campinas')) {
@@ -581,7 +620,7 @@ export async function parseExcelCapturedRows(file: File): Promise<{
             } else if (destino.toLowerCase().includes('sorocaba')) {
               cidadeDestino = 'Sorocaba';
             } else {
-              cidadeDestino = 'Campinas'; // safe default
+              cidadeDestino = 'Campinas';
             }
           }
 

@@ -13,7 +13,8 @@ import {
   XCircle, 
   Trash2,
   Bus,
-  MessageCircle
+  MessageCircle,
+  UserCheck
 } from 'lucide-react';
 import { Trip, Vehicle, MunicipalConfig, ensurePassengerArray } from '../types';
 import { formatDateBR, formatPlate, getPassengerStatusLabel } from '../utils/formatters';
@@ -26,6 +27,7 @@ interface BookingsViewProps {
   onOpenNewBookingModal: () => void;
   onPrintTicket: (trip: Trip, passengerId: string) => void;
   onCancelBooking: (tripId: string, passengerId: string) => void;
+  onCleanupTrips?: () => void;
 }
 
 export const BookingsView: React.FC<BookingsViewProps> = ({
@@ -35,35 +37,61 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   onOpenNewBookingModal,
   onPrintTicket,
   onCancelBooking,
+  onCleanupTrips,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  // Helper to normalize Portuguese diacritics / accents
+  const normalizeString = (str: string): string => {
+    return (str || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  };
+
   // Flatten all passengers from all trips
-  const allBookings = trips.flatMap((trip) =>
-    ensurePassengerArray(trip.passengers).map((passenger) => ({
-      trip,
-      passenger,
-      vehicle: vehicles.find((v) => v.id === trip.vehicleId),
-    }))
-  );
+  const allBookings = useMemo(() => {
+    return trips.flatMap((trip) =>
+      ensurePassengerArray(trip.passengers).map((passenger) => ({
+        trip,
+        passenger,
+        vehicle: vehicles.find((v) => v.id === trip.vehicleId),
+      }))
+    );
+  }, [trips, vehicles]);
 
-  const filteredBookings = useMemo(() => allBookings.filter(({ trip, passenger }) => {
-    const term = searchTerm.toLowerCase().trim();
+  const filteredBookings = useMemo(() => {
+    const term = normalizeString(searchTerm.trim());
     const cleanDigits = term.replace(/\D/g, '');
-    const matchSearch =
-      !term ||
-      (passenger.patientName || '').toLowerCase().includes(term) ||
-      (cleanDigits && (passenger.patientCpf || '').replace(/\D/g, '').includes(cleanDigits)) ||
-      (cleanDigits && (passenger.patientSus || '').replace(/\D/g, '').includes(cleanDigits)) ||
-      (passenger.bookingCode || '').toLowerCase().includes(term) ||
-      (passenger.destinationName || '').toLowerCase().includes(term) ||
-      (trip.destinationCity || '').toLowerCase().includes(term) ||
-      (passenger.companionName && passenger.companionName.toLowerCase().includes(term));
 
-    const matchStatus = statusFilter === 'all' || passenger.status === statusFilter;
-    return matchSearch && matchStatus;
-  }), [allBookings, searchTerm, statusFilter]);
+    const filtered = allBookings.filter(({ trip, passenger }) => {
+      const matchSearch =
+        !term ||
+        normalizeString(passenger.patientName).includes(term) ||
+        normalizeString(passenger.companionName || '').includes(term) ||
+        (cleanDigits && (passenger.patientCpf || '').replace(/\D/g, '').includes(cleanDigits)) ||
+        (cleanDigits && (passenger.patientSus || '').replace(/\D/g, '').includes(cleanDigits)) ||
+        (cleanDigits && ((passenger.patientPhone || '') + (passenger.patientWhatsapp || '')).replace(/\D/g, '').includes(cleanDigits)) ||
+        normalizeString(passenger.bookingCode).includes(term) ||
+        normalizeString(trip.code || '').includes(term) ||
+        normalizeString(passenger.destinationName).includes(term) ||
+        normalizeString(trip.destinationCity).includes(term) ||
+        normalizeString(passenger.patientAddress || '').includes(term) ||
+        normalizeString(trip.driverName || '').includes(term);
+
+      const matchStatus = statusFilter === 'all' || passenger.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
+
+    return filtered.sort((a, b) => {
+      // Sort by departure date descending, then patient name
+      if (a.trip.departureDate !== b.trip.departureDate) {
+        return b.trip.departureDate.localeCompare(a.trip.departureDate);
+      }
+      return a.passenger.patientName.localeCompare(b.passenger.patientName, 'pt-BR');
+    });
+  }, [allBookings, searchTerm, statusFilter]);
 
   const displayedBookings = useMemo(() => filteredBookings.slice(0, 500), [filteredBookings]);
 
@@ -78,14 +106,28 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
           </p>
         </div>
 
-        <button
-          id="btn-bookings-new"
-          onClick={onOpenNewBookingModal}
-          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Novo Agendamento</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {onCleanupTrips && (
+            <button
+              type="button"
+              onClick={() => onCleanupTrips()}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-xs font-bold border border-amber-300 transition-colors cursor-pointer"
+              title="Unifica agendamentos e passageiros repetidos nas viagens"
+            >
+              <UserCheck className="w-4 h-4 text-amber-700" />
+              <span>Limpar Agendamentos Duplicados</span>
+            </button>
+          )}
+
+          <button
+            id="btn-bookings-new"
+            onClick={onOpenNewBookingModal}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Novo Agendamento</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search */}
@@ -94,11 +136,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Buscar por nome do paciente, CPF, cartão SUS, código ou destino..."
+            placeholder="Digite qualquer parte do nome do paciente, CPF, cartão SUS, acompanhante, código ou destino..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-emerald-600"
+            className="w-full pl-9 pr-8 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-emerald-600 font-semibold"
+            autoFocus
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-700 font-bold text-xs"
+              title="Limpar busca"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -278,8 +330,20 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
             </tbody>
           </table>
         </div>
-          <div className="bg-slate-50 border-t border-slate-200 p-3 text-center text-xs text-slate-500 font-medium">
-            Exibindo os primeiros 500 resultados de {filteredBookings.length} encontrados. Utilize a busca para encontrar agendamentos específicos.
+          <div className="bg-slate-50 border-t border-slate-200 p-3 flex flex-wrap items-center justify-between gap-2 text-xs font-medium">
+            <span className="text-slate-700">
+              Exibindo <strong>{displayedBookings.length}</strong> de <strong>{filteredBookings.length}</strong> agendamento(s) encontrado(s)
+              {searchTerm ? <span className="text-emerald-800 font-bold font-sans"> para "{searchTerm}"</span> : ''}.
+            </span>
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="text-xs text-rose-600 hover:text-rose-800 font-bold underline cursor-pointer"
+              >
+                Limpar Busca
+              </button>
+            )}
           </div>
       </div>
     </div>
