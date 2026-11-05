@@ -147,7 +147,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex flex-wrap items-center gap-3 mt-4 pt-2">
             <button
               id="btn-quick-new-booking"
-              onClick={() => onOpenNewBookingModal(scheduledTrips[0]?.id)}
+              onClick={() => onOpenNewBookingModal()}
               className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-md transition-colors cursor-pointer"
             >
               <Ticket className="w-4 h-4" />
