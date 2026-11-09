@@ -196,6 +196,12 @@ export const PrintManifestModal: React.FC<PrintManifestModalProps> = ({
                                 <span className="font-bold text-slate-900 text-xs block leading-snug">
                                   {boardingLocation}
                                 </span>
+                                <div className="flex items-center gap-1 mt-1">
+                                  <Clock className="w-2.5 h-2.5 text-emerald-600" />
+                                  <span className="text-[10px] text-emerald-800 font-bold">
+                                    Hora: {p.boardingTime || trip.departureTime}
+                                  </span>
+                                </div>
                                 <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
                                   {boardingLocation.toLowerCase() === trip.departureLocation.toLowerCase()
                                     ? 'Ponto central de saída'
@@ -234,6 +240,12 @@ export const PrintManifestModal: React.FC<PrintManifestModalProps> = ({
                                   <span className="text-xs text-slate-700 font-medium block leading-snug">
                                     {companionBoardingLocation}
                                   </span>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <Clock className="w-2 h-2 text-slate-500" />
+                                    <span className="text-[9px] text-slate-600 font-bold">
+                                      Hora: {p.companionBoardingTime || p.boardingTime || trip.departureTime}
+                                    </span>
+                                  </div>
                                   <span className="text-[9px] text-slate-400 block mt-0.5">
                                     Embarque junto com o paciente
                                   </span>

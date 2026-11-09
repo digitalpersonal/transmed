@@ -67,6 +67,8 @@ export interface Patient {
   condition: PatientCondition;
   mobility: MobilityType;
   procedureTime?: string;
+  habitualBoardingTime?: string;
+  companionHabitualBoardingTime?: string;
   companionRequired: boolean;
   companionName?: string;
   companionBirthDate?: string;
@@ -139,6 +141,8 @@ export interface TripPassenger {
   status: 'confirmed' | 'boarded' | 'missed' | 'cancelled';
   notes?: string;
   bookedAt: string;
+  boardingTime?: string;
+  companionBoardingTime?: string;
 }
 
 export interface TripClosure {

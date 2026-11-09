@@ -673,6 +673,8 @@ export async function parseExcelCapturedRows(file: File): Promise<{
             condition: (destino as any) || 'Consulta Médica',
             mobility: 'Ambulante',
             procedureTime: horarioProcedimento,
+            habitualBoardingTime: horarioSaida,
+            companionHabitualBoardingTime: possuiAcompanhante ? horarioSaida : undefined,
             companionRequired: possuiAcompanhante,
             ...(possuiAcompanhante || nomeAcompanhante ? { companionName: nomeAcompanhante || 'Acompanhante Autorizado' } : {}),
             ...(dataNascimentoAcompanhante ? { companionBirthDate: dataNascimentoAcompanhante } : {}),

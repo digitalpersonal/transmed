@@ -46,6 +46,8 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
       condition: 'Consulta Médica',
       mobility: 'Ambulante',
       procedureTime: '08:00',
+      habitualBoardingTime: '',
+      companionHabitualBoardingTime: '',
       companionRequired: false,
       companionName: '',
       companionBirthDate: '',
@@ -124,6 +126,8 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
       condition: formData.condition || 'Consulta Médica',
       mobility: formData.mobility || 'Ambulante',
       procedureTime: formData.procedureTime?.trim() || '08:00',
+      habitualBoardingTime: formData.habitualBoardingTime?.trim() || undefined,
+      companionHabitualBoardingTime: formData.companionRequired ? (formData.companionHabitualBoardingTime?.trim() || undefined) : undefined,
       companionRequired: Boolean(formData.companionRequired),
       companionName: formData.companionRequired ? formData.companionName?.trim() : undefined,
       companionBirthDate: formData.companionRequired ? formData.companionBirthDate : undefined,
@@ -334,12 +338,12 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Horário Habitual do Procedimento</label>
+                <label className="block font-semibold text-slate-700 mb-1">Horário Habitual de Embarque</label>
                 <input
                   type="time"
-                  value={formData.procedureTime || '08:00'}
-                  onChange={(e) => setFormData({ ...formData, procedureTime: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-emerald-600"
+                  value={formData.habitualBoardingTime || ''}
+                  onChange={(e) => setFormData({ ...formData, habitualBoardingTime: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold focus:outline-emerald-600"
                 />
               </div>
             </div>
@@ -482,6 +486,16 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
                       value={formData.companionAddress || ''}
                       onChange={(e) => setFormData({ ...formData, companionAddress: e.target.value })}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-emerald-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Hora Habitual Embarque</label>
+                    <input
+                      type="time"
+                      value={formData.companionHabitualBoardingTime || ''}
+                      onChange={(e) => setFormData({ ...formData, companionHabitualBoardingTime: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold focus:outline-emerald-600"
                     />
                   </div>
 

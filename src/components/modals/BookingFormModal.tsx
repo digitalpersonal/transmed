@@ -53,6 +53,9 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   const [appointmentTime, setAppointmentTime] = useState<string>('08:00');
   const [appointmentType, setAppointmentType] = useState<string>('Consulta Médica');
   const [notes, setNotes] = useState<string>('');
+  
+  const [boardingTime, setBoardingTime] = useState<string>('');
+  const [companionBoardingTime, setCompanionBoardingTime] = useState<string>('');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -125,9 +128,18 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
         setCompanionCpf(selectedPatient.companionCpf || '');
         setCompanionKinship(selectedPatient.companionKinship || '');
         setCompanionAddress(selectedPatient.companionAddress || selectedPatient.boardingAddress || selectedPatient.address || '');
+        if (selectedPatient.companionHabitualBoardingTime) {
+          setCompanionBoardingTime(selectedPatient.companionHabitualBoardingTime);
+        }
       } else {
         setCompanionIncluded(false);
         setCompanionAddress(selectedPatient.companionAddress || selectedPatient.boardingAddress || selectedPatient.address || '');
+      }
+
+      if (selectedPatient.habitualBoardingTime) {
+        setBoardingTime(selectedPatient.habitualBoardingTime);
+      } else if (selectedTrip && !boardingTime) {
+        setBoardingTime(selectedTrip.departureTime);
       }
     }
   }, [selectedPatient]);
@@ -207,6 +219,10 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
       if (tripDestinations.length > 0) {
         setDestinationId(tripDestinations[0].id);
       }
+
+      // Default boarding times to trip departure time if not already set by patient habitual preference
+      if (!boardingTime) setBoardingTime(selectedTrip.departureTime);
+      if (!companionBoardingTime) setCompanionBoardingTime(selectedTrip.departureTime);
     }
   }, [selectedTrip, destinations, tripDestinations]);
 
@@ -263,6 +279,8 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
       status: 'confirmed',
       notes: notes.trim() || undefined,
       bookedAt: `${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+      boardingTime: boardingTime || selectedTrip.departureTime,
+      companionBoardingTime: companionBoardingTime || boardingTime || selectedTrip.departureTime,
     };
 
     onSaveBooking(selectedTripId, newPassenger);
@@ -502,21 +520,40 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
               </div>
             )}
 
-            {/* Local de Embarque do Paciente */}
-            <div className="mt-3">
-              <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span>Ponto / Local de Embarque do Paciente no Município</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Ex: Rua das Flores 120, UBS Central ou Praça da Matriz"
-                value={patientAddress}
-                onChange={(e) => setPatientAddress(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-emerald-600"
-              />
-              <p className="text-[10px] text-slate-500 mt-0.5">
-                Endereço ou ponto de referência exato onde o motorista apanhará este paciente.
+            {/* Local e Horário de Embarque do Paciente */}
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="md:col-span-3">
+                <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                  <span>Ponto / Local de Embarque do Paciente no Município</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Rua das Flores 120, UBS Central ou Praça da Matriz"
+                  value={patientAddress}
+                  onChange={(e) => setPatientAddress(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-emerald-600"
+                />
+                {selectedPatient?.boardingAddress && (
+                  <p className="text-[9px] text-emerald-600 font-bold mt-0.5">
+                    ✓ Endereço cadastrado: {selectedPatient.boardingAddress}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                  <span>Hora Embarque</span>
+                </label>
+                <input
+                  type="time"
+                  value={boardingTime}
+                  onChange={(e) => setBoardingTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold focus:outline-emerald-600"
+                />
+              </div>
+              <p className="md:col-span-4 text-[10px] text-slate-500 -mt-1">
+                Endereço e horário exato onde o motorista apanhará este paciente.
               </p>
             </div>
           </div>
@@ -578,7 +615,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                     />
                   </div>
 
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-3">
                     <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
                       <span>Ponto / Local de Embarque do Acompanhante</span>
@@ -589,6 +626,24 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                       value={companionAddress}
                       onChange={(e) => setCompanionAddress(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-emerald-600"
+                    />
+                    {selectedPatient?.companionAddress && (
+                      <p className="text-[9px] text-emerald-600 font-bold mt-0.5">
+                        ✓ Endereço cadastrado para acompanhante: {selectedPatient.companionAddress}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                      <span>Hora Embarque</span>
+                    </label>
+                    <input
+                      type="time"
+                      value={companionBoardingTime}
+                      onChange={(e) => setCompanionBoardingTime(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold focus:outline-emerald-600"
                     />
                   </div>
                 </div>

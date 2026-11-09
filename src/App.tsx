@@ -680,6 +680,8 @@ export default function App() {
         if (parsedPat.birthDate && parsedPat.birthDate !== existingPat.birthDate) { mergedPat.birthDate = parsedPat.birthDate; changed = true; }
         if (parsedPat.phone && parsedPat.phone !== existingPat.phone) { mergedPat.phone = parsedPat.phone; changed = true; }
         if (parsedPat.address && parsedPat.address !== existingPat.address) { mergedPat.address = parsedPat.address; changed = true; }
+        if (parsedPat.habitualBoardingTime && parsedPat.habitualBoardingTime !== existingPat.habitualBoardingTime) { mergedPat.habitualBoardingTime = parsedPat.habitualBoardingTime; changed = true; }
+        if (parsedPat.companionHabitualBoardingTime && parsedPat.companionHabitualBoardingTime !== existingPat.companionHabitualBoardingTime) { mergedPat.companionHabitualBoardingTime = parsedPat.companionHabitualBoardingTime; changed = true; }
         
         if (changed) {
           existingPat = mergedPat;
@@ -772,6 +774,8 @@ export default function App() {
           appointmentType: existingPat.condition || 'Consulta Médica',
           status: 'confirmed',
           bookedAt: todayStr,
+          boardingTime: row.horarioSaida || existingPat.habitualBoardingTime || '05:30',
+          companionBoardingTime: row.horarioSaida || existingPat.companionHabitualBoardingTime || existingPat.habitualBoardingTime || '05:30',
         };
 
         if (!targetTrip) {

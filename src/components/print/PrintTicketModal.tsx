@@ -172,11 +172,50 @@ export const PrintTicketModal: React.FC<PrintTicketModalProps> = ({
               </div>
             </div>
 
-            <div className="space-y-2 print:space-y-1.5 text-xs print:text-[11px]">
-              <div className="p-2.5 print:p-1.5 bg-emerald-50/60 rounded-md border border-emerald-200">
-                <span className="text-emerald-900 font-bold block text-xs print:text-[11px]">LOCAL DE EMBARQUE NO MUNICÍPIO:</span>
-                <span className="font-bold text-slate-900 text-sm print:text-xs">{trip.departureLocation}</span>
-                <span className="block text-[11px] print:text-[10px] text-slate-500 mt-0.5">Comparecer impreterivelmente 20 minutos antes do horário de saída.</span>
+            <div className="space-y-2 print:space-y-1 text-xs print:text-[11px]">
+              <div className="p-3 print:p-2 bg-emerald-50 rounded-lg border-2 border-emerald-200">
+                <div className="flex items-center gap-2 mb-2 print:mb-1 border-b border-emerald-200/50 pb-1">
+                  <MapPin className="w-4 h-4 text-emerald-700" />
+                  <span className="text-emerald-900 font-black text-xs print:text-[11px] uppercase">Locais de Embarque Autorizados</span>
+                </div>
+                
+                <div className="space-y-2 print:space-y-1">
+                  <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] print:text-[9px] font-bold text-emerald-800 uppercase min-w-[85px] print:min-w-[75px]">Paciente:</span>
+                      <span className="font-black text-slate-900 text-sm print:text-xs">
+                        {passenger.patientAddress || trip.departureLocation}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                      <Clock className="w-3 h-3 text-slate-500" />
+                      <span className="text-[10px] print:text-[9px] font-bold text-slate-600 uppercase">Hora de Saída:</span>
+                      <span className="font-black text-emerald-800 text-sm print:text-xs">{passenger.boardingTime || trip.departureTime}</span>
+                    </div>
+                  </div>
+
+                  {passenger.companionIncluded && (
+                    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 pt-1 border-t border-emerald-200/30">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-[10px] print:text-[9px] font-bold text-emerald-800 uppercase min-w-[85px] print:min-w-[75px]">Acompanhante:</span>
+                        <span className="font-black text-slate-900 text-sm print:text-xs">
+                          {passenger.companionAddress || passenger.patientAddress || trip.departureLocation}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-1 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        <Clock className="w-3 h-3 text-slate-500" />
+                        <span className="text-[10px] print:text-[9px] font-bold text-slate-600 uppercase">Hora de Saída:</span>
+                        <span className="font-black text-emerald-800 text-sm print:text-xs">{passenger.companionBoardingTime || passenger.boardingTime || trip.departureTime}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-2 print:mt-1 pt-1 border-t border-emerald-200/30">
+                  <span className="block text-[10px] print:text-[9px] text-slate-600 italic">
+                    * Favor estar no ponto com 20 minutos de antecedência. Em caso de atraso, o veículo seguirá viagem para não comprometer os demais atendimentos.
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 print:gap-2 mt-2 print:mt-1">
