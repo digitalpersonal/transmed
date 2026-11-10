@@ -194,10 +194,10 @@ export interface Trip {
   destinationHospital?: string; // Clinica/Hospital de referencia da viagem
   departureLocation: string; // Ex: Praça da Matriz / Garagem da Saúde
   
-  vehicleId: string;
+  vehicleId?: string;
   driverId?: string;
-  driverName: string;
-  driverPhone: string;
+  driverName?: string;
+  driverPhone?: string;
   
   status: TripStatus;
   passengers: TripPassenger[];

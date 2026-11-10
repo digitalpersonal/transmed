@@ -113,7 +113,7 @@ export const PrintManifestModal: React.FC<PrintManifestModalProps> = ({
             </div>
             <div>
               <span className="text-xs text-slate-500 font-semibold uppercase block">Motorista Responsável</span>
-              <span className="font-bold text-slate-900 text-sm">{trip.driverName} ({trip.driverPhone})</span>
+              <span className="font-bold text-slate-900 text-sm">{trip.driverName || 'Não designado'} {trip.driverPhone ? `(${trip.driverPhone})` : ''}</span>
             </div>
             <div>
               <span className="text-xs text-slate-500 font-semibold uppercase block">Lotação (Pass/Vagas)</span>
@@ -199,7 +199,7 @@ export const PrintManifestModal: React.FC<PrintManifestModalProps> = ({
                                 <div className="flex items-center gap-1 mt-1">
                                   <Clock className="w-2.5 h-2.5 text-emerald-600" />
                                   <span className="text-[10px] text-emerald-800 font-bold">
-                                    Hora: {p.boardingTime || trip.departureTime}
+                                    Saída: {p.boardingTime || trip.departureTime}
                                   </span>
                                 </div>
                                 <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
@@ -243,7 +243,7 @@ export const PrintManifestModal: React.FC<PrintManifestModalProps> = ({
                                   <div className="flex items-center gap-1 mt-0.5">
                                     <Clock className="w-2 h-2 text-slate-500" />
                                     <span className="text-[9px] text-slate-600 font-bold">
-                                      Hora: {p.companionBoardingTime || p.boardingTime || trip.departureTime}
+                                      Saída: {p.companionBoardingTime || p.boardingTime || trip.departureTime}
                                     </span>
                                   </div>
                                   <span className="text-[9px] text-slate-400 block mt-0.5">

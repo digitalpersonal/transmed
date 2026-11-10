@@ -73,6 +73,7 @@ import { ClosuresAndReportsView } from './components/ClosuresAndReportsView';
 import { BpaExportView } from './components/BpaExportView';
 import { BoardingAddressesView } from './components/BoardingAddressesView';
 import { BackupsView } from './components/BackupsView';
+import { ConsolidationView } from './components/ConsolidationView';
 
 // Modals
 import { PatientFormModal } from './components/modals/PatientFormModal';
@@ -539,8 +540,29 @@ export default function App() {
       );
 
       if (!found) {
+        // More robust plate extraction: 
+        // 1. Try parentheses: (ABC-1234) or (ABC1D23)
+        // 2. Try pattern matching for 7-char alphanumeric strings
+        let plate = '';
         const plateMatch = cleanVeh.match(/\(([^)]+)\)/);
-        const plate = plateMatch ? plateMatch[1].toUpperCase() : `TFD-${Math.floor(1000 + Math.random() * 9000)}`;
+        if (plateMatch) {
+          plate = plateMatch[1].toUpperCase().replace(/[^A-Z0-9]/g, '');
+        } else {
+          // Look for something that looks like a plate (e.g. ABC-1234 or ABC1234 or ABC1D23)
+          const words = cleanVeh.split(/\s+/);
+          for (const word of words) {
+            const cleanWord = word.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (cleanWord.length === 7) {
+              plate = cleanWord;
+              break;
+            }
+          }
+        }
+
+        if (!plate) {
+          plate = `TFD-${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+
         const model = cleanVeh.replace(/\([^)]+\)/, '').trim() || 'Veículo Adicional';
         
         found = {
@@ -1048,6 +1070,64 @@ export default function App() {
     setTrips(trips.map((t) => (t.id === tripId ? updatedTrip : t)));
     upsertTripFirestore(updatedTrip).catch(() => {});
     showToast('Agendamento cancelado. Vagas liberadas no veículo.', 'info');
+  };
+
+  const handleDispatchTrip = (tripId: string, vehicleId: string, driverId: string, driverName: string, driverPhone: string) => {
+    const targetTrip = trips.find(t => t.id === tripId);
+    if (!targetTrip) return;
+
+    const updatedTrip: Trip = {
+      ...targetTrip,
+      vehicleId,
+      driverId,
+      driverName,
+      driverPhone,
+    };
+
+    const updatedTrips = trips.map(t => t.id === tripId ? updatedTrip : t);
+    setTrips(updatedTrips);
+    upsertTripFirestore(updatedTrip).catch(() => {});
+    showToast(`Escala da viagem ${updatedTrip.code} finalizada com sucesso!`);
+  };
+
+  const handleMovePassenger = (sourceTripId: string, targetTripId: string, passengerId: string) => {
+    const sourceTrip = trips.find(t => t.id === sourceTripId);
+    const targetTrip = trips.find(t => t.id === targetTripId);
+
+    if (!sourceTrip || !targetTrip) return;
+
+    const sourcePassList = ensurePassengerArray(sourceTrip.passengers);
+    const passToMove = sourcePassList.find(p => p.id === passengerId);
+    if (!passToMove) return;
+
+    // Remove from source
+    const updatedSourcePassengers = sourcePassList.filter(p => p.id !== passengerId);
+    const updatedSourceTrip: Trip = { ...sourceTrip, passengers: updatedSourcePassengers };
+
+    // Add to target
+    const targetPassList = ensurePassengerArray(targetTrip.passengers);
+    const updatedTargetPassengers = [...targetPassList, passToMove];
+    const updatedTargetTrip: Trip = { ...targetTrip, passengers: updatedTargetPassengers };
+
+    const updatedTrips = trips.map(t => {
+      if (t.id === sourceTripId) return updatedSourceTrip;
+      if (t.id === targetTripId) return updatedTargetTrip;
+      return t;
+    });
+
+    setTrips(updatedTrips);
+    
+    // Batch sync to Supabase
+    const itemsToSync = [
+      { collectionName: 'trips', id: updatedSourceTrip.id, data: updatedSourceTrip },
+      { collectionName: 'trips', id: updatedTargetTrip.id, data: updatedTargetTrip }
+    ];
+    performBatchWrite(itemsToSync, []).catch(err => {
+      console.error('Error syncing move passenger:', err);
+      showToast('Erro ao sincronizar movimentação na nuvem.', 'error');
+    });
+
+    showToast(`Paciente ${passToMove.patientName} movido para a viagem ${targetTrip.code} (${targetTrip.destinationCity})`, 'success');
   };
 
   // ==========================================
@@ -1912,6 +1992,25 @@ export default function App() {
             onPrintPassengerTicket={triggerPrintPassengerTicket}
             onRemoveCompanion={handleRemoveCompanion}
             onCleanupTrips={handleCleanupTrips}
+            drivers={drivers}
+            onDispatchTrip={handleDispatchTrip}
+            onMovePassenger={handleMovePassenger}
+          />
+        )}
+
+        {activeTab === 'consolidation' && (
+          <ConsolidationView
+            trips={trips}
+            vehicles={vehicles}
+            drivers={drivers}
+            onMovePassenger={handleMovePassenger}
+            onDispatchTrip={handleDispatchTrip}
+            onPrintManifest={triggerPrintManifest}
+            onOpenBookingModal={(tripId) => {
+              setPreselectedTripId(tripId);
+              setPreselectedPatientId(undefined);
+              setIsBookingModalOpen(true);
+            }}
           />
         )}
 

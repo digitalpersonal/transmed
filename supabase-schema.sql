@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS patients (
   condition text,
   mobility text,
   "procedureTime" text,
+  "habitualBoardingTime" text,
+  "companionHabitualBoardingTime" text,
   "companionRequired" boolean DEFAULT false,
   "companionName" text,
   "companionBirthDate" text,

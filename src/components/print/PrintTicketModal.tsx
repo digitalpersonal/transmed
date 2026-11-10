@@ -176,7 +176,7 @@ export const PrintTicketModal: React.FC<PrintTicketModalProps> = ({
               <div className="p-3 print:p-2 bg-emerald-50 rounded-lg border-2 border-emerald-200">
                 <div className="flex items-center gap-2 mb-2 print:mb-1 border-b border-emerald-200/50 pb-1">
                   <MapPin className="w-4 h-4 text-emerald-700" />
-                  <span className="text-emerald-900 font-black text-xs print:text-[11px] uppercase">Locais de Embarque Autorizados</span>
+                  <span className="text-emerald-900 font-black text-xs print:text-[11px] uppercase">Local de Embarque (Ponto de Saída)</span>
                 </div>
                 
                 <div className="space-y-2 print:space-y-1">
@@ -234,9 +234,7 @@ export const PrintTicketModal: React.FC<PrintTicketModalProps> = ({
               </div>
 
               {vehicle && (
-                <div className="pt-2 print:pt-1 border-t border-slate-200 flex flex-wrap items-center justify-between text-slate-600 text-[11px] print:text-[10px]">
-                  <span>Veículo: <strong className="text-slate-900">{vehicle.model} ({vehicle.plate})</strong></span>
-                  <span>Motorista: <strong className="text-slate-900">{trip.driverName} ({trip.driverPhone})</strong></span>
+                <div className="pt-2 print:pt-1 border-t border-slate-200 flex flex-wrap items-center justify-end text-slate-600 text-[11px] print:text-[10px]">
                   <span>Assento Paciente: <strong className="text-emerald-800 font-bold">Nº {passenger.seatNumber || 'Ordem Chegada'}</strong></span>
                 </div>
               )}

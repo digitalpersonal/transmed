@@ -20,12 +20,15 @@ import {
   CheckCircle2,
   XCircle,
   Navigation,
-  MessageCircle
+  MessageCircle,
+  ArrowRightLeft
 } from 'lucide-react';
-import { DestinationHospital, Trip, Vehicle, MunicipalConfig, ensurePassengerArray } from '../types';
+import { DestinationHospital, Trip, Vehicle, MunicipalConfig, ensurePassengerArray, TripPassenger, Driver } from '../types';
 import { exportTripManifestToExcel } from '../utils/excel';
 import { formatDateBR, formatPlate, getPassengerStatusLabel, getTripStatusLabel } from '../utils/formatters';
 import { getWhatsAppConfirmationLink } from '../utils/whatsapp';
+import { TripDispatchModal } from './modals/TripDispatchModal';
+import { MovePassengerModal } from './modals/MovePassengerModal';
 
 interface TripsViewProps {
   trips: Trip[];
@@ -42,6 +45,9 @@ interface TripsViewProps {
   onPrintPassengerTicket: (trip: Trip, passengerId: string) => void;
   onRemoveCompanion?: (tripId: string, passengerId: string) => void;
   onCleanupTrips?: () => void;
+  drivers: Driver[];
+  onDispatchTrip: (tripId: string, vehicleId: string, driverId: string, driverName: string, driverPhone: string) => void;
+  onMovePassenger: (sourceTripId: string, targetTripId: string, passengerId: string) => void;
 }
 
 export const TripsView: React.FC<TripsViewProps> = ({
@@ -59,11 +65,18 @@ export const TripsView: React.FC<TripsViewProps> = ({
   onPrintPassengerTicket,
   onRemoveCompanion,
   onCleanupTrips,
+  drivers,
+  onDispatchTrip,
+  onMovePassenger,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedTripId, setExpandedTripId] = useState<string | null>(null);
   const [tripToDelete, setTripToDelete] = useState<Trip | null>(null);
+  
+  // New States for Workflow
+  const [dispatchTrip, setDispatchTrip] = useState<Trip | null>(null);
+  const [movePassengerContext, setMovePassengerContext] = useState<{ passenger: TripPassenger; trip: Trip } | null>(null);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -371,8 +384,8 @@ export const TripsView: React.FC<TripsViewProps> = ({
                             <span className={`w-2.5 h-2.5 rounded-full inline-block shrink-0 ${statusBadge.dot}`}></span>
                             {statusBadge.label}
                           </span>
-                          <span className="text-xs font-mono font-bold text-slate-400">
-                            {trip.code}
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-black border uppercase ${vehicle ? 'bg-slate-100 border-slate-300 text-slate-700' : 'bg-amber-50 border-amber-200 text-amber-600'}`}>
+                            {vehicle ? `Placa: ${formatPlate(vehicle.plate)}` : 'Aguardando Escala'}
                           </span>
                         </div>
 
@@ -481,9 +494,9 @@ export const TripsView: React.FC<TripsViewProps> = ({
                         <>
                           <button
                             onClick={() => onOpenNewBookingModal(trip.id)}
-                            disabled={freeSeats <= 0}
+                            disabled={freeSeats <= 0 && !!trip.vehicleId}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                              freeSeats <= 0
+                              freeSeats <= 0 && !!trip.vehicleId
                                 ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                                 : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
                             }`}
@@ -492,13 +505,33 @@ export const TripsView: React.FC<TripsViewProps> = ({
                             <span>Agendar Paciente</span>
                           </button>
 
-                          <button
-                            onClick={() => onOpenClosureModal(trip)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                          >
-                            <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>Fechar Viagem</span>
-                          </button>
+                          {!trip.vehicleId ? (
+                            <button
+                              onClick={() => setDispatchTrip(trip)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              <Bus className="w-3.5 h-3.5 text-sky-400" />
+                              <span>Fechar Romaneio</span>
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => setDispatchTrip(trip)}
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors cursor-pointer border border-slate-300"
+                                title="Mudar veículo ou motorista desta viagem"
+                              >
+                                <ArrowRightLeft className="w-3.5 h-3.5" />
+                                <span>Trocar Carro</span>
+                              </button>
+                              <button
+                                onClick={() => onOpenClosureModal(trip)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold transition-colors cursor-pointer border border-emerald-300"
+                              >
+                                <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Registrar Km/Freq.</span>
+                              </button>
+                            </div>
+                          )}
                         </>
                       ) : (
                         <button
@@ -629,6 +662,13 @@ export const TripsView: React.FC<TripsViewProps> = ({
                                   </td>
                                   <td className="py-2.5 px-3 text-center">
                                     <div className="flex items-center justify-center gap-1">
+                                      <button
+                                        onClick={() => setMovePassengerContext({ passenger: p, trip })}
+                                        className="p-1.5 bg-slate-100 hover:bg-sky-100 text-slate-600 hover:text-sky-700 rounded-lg transition-colors cursor-pointer"
+                                        title="Mover paciente para outra viagem/carro"
+                                      >
+                                        <ArrowRightLeft className="w-4 h-4" />
+                                      </button>
                                       {(() => {
                                         const veh = vehicles.find((v) => v.id === trip.vehicleId);
                                         const waLink = getWhatsAppConfirmationLink(p, trip, veh, config);
@@ -742,6 +782,35 @@ export const TripsView: React.FC<TripsViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Dispatch Modal */}
+      {dispatchTrip && (
+        <TripDispatchModal
+          trip={dispatchTrip}
+          vehicles={vehicles}
+          drivers={drivers}
+          onClose={() => setDispatchTrip(null)}
+          onSave={(tripId, vehicleId, driverId, driverName, driverPhone) => {
+            onDispatchTrip(tripId, vehicleId, driverId, driverName, driverPhone);
+            setDispatchTrip(null);
+          }}
+        />
+      )}
+
+      {/* Move Passenger Modal */}
+      {movePassengerContext && (
+        <MovePassengerModal
+          passenger={movePassengerContext.passenger}
+          currentTrip={movePassengerContext.trip}
+          availableTrips={trips}
+          vehicles={vehicles}
+          onClose={() => setMovePassengerContext(null)}
+          onMove={(sourceId, targetId, passengerId) => {
+            onMovePassenger(sourceId, targetId, passengerId);
+            setMovePassengerContext(null);
+          }}
+        />
       )}
     </div>
   );

@@ -32,7 +32,19 @@ export function formatPhone(value?: string | null): string {
 
 export function formatPlate(value?: string | null): string {
   if (!value) return '';
+  // Remove any character that is not a letter or number
   const clean = String(value).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
+  
+  if (clean.length === 7) {
+    // Mercosul Plate: LLLNLNN (e.g. BRA3R52)
+    // Check if the 5th character (index 4) is a letter
+    const isMercosul = /[A-Z]/.test(clean[4]);
+    if (isMercosul) return clean; // Mercosul officially has no hyphen
+    
+    // Traditional Plate: LLLNNNN (e.g. ABC1234)
+    return `${clean.slice(0, 3)}-${clean.slice(3)}`;
+  }
+  
   if (clean.length > 3) {
     return `${clean.slice(0, 3)}-${clean.slice(3)}`;
   }

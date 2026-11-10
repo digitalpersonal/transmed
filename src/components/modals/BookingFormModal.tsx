@@ -59,8 +59,14 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Active trips available for booking (scheduled or in_route)
-  const availableTrips = trips.filter((t) => t.status === 'scheduled');
+  // Active trips available for booking (scheduled or in_route) sorted by date/time ascending
+  const availableTrips = trips
+    .filter((t) => t.status === 'scheduled')
+    .sort((a, b) => {
+      const dateCompare = (a.departureDate || '').localeCompare(b.departureDate || '');
+      if (dateCompare !== 0) return dateCompare;
+      return (a.departureTime || '').localeCompare(b.departureTime || '');
+    });
 
   // Helper to normalize Portuguese diacritics / accents
   const normalizeString = (str: string): string => {
@@ -370,7 +376,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                     const free = maxCap - occupied;
                     return (
                       <option key={t.id} value={t.id}>
-                        {formatDateBR(t.departureDate)} às {t.departureTime} → {t.destinationCity} | Veículo: {veh?.model} ({free} vagas livres de {maxCap})
+                        {formatDateBR(t.departureDate)} às {t.departureTime} → {t.destinationCity} | {veh ? `${formatPlate(veh.plate)} (${veh.model})` : 'AGUARDANDO ESCALA'} | {free} vagas livres
                       </option>
                     );
                   })}
@@ -523,9 +529,21 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
             {/* Local e Horário de Embarque do Paciente */}
             <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="md:col-span-3">
-                <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                  <span>Ponto / Local de Embarque do Paciente no Município</span>
+                <label className="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    Local de Embarque do Paciente
+                  </span>
+                  {selectedPatient && (
+                    <button
+                      type="button"
+                      onClick={() => setPatientAddress(selectedPatient.boardingAddress || selectedPatient.address || '')}
+                      className="text-[9px] text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer"
+                      title="Restaurar endereço do cadastro"
+                    >
+                      (Usar endereço do cadastro)
+                    </button>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -543,7 +561,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
               <div>
                 <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                  <span>Hora Embarque</span>
+                  <span>Horário de Saída</span>
                 </label>
                 <input
                   type="time"
@@ -616,9 +634,21 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                   </div>
 
                   <div className="md:col-span-3">
-                    <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                      <span>Ponto / Local de Embarque do Acompanhante</span>
+                    <label className="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                        Local de Embarque do Acompanhante
+                      </span>
+                      {selectedPatient && (
+                        <button
+                          type="button"
+                          onClick={() => setCompanionAddress(selectedPatient.companionAddress || selectedPatient.boardingAddress || selectedPatient.address || '')}
+                          className="text-[9px] text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer"
+                          title="Restaurar endereço do cadastro"
+                        >
+                          (Usar endereço do cadastro)
+                        </button>
+                      )}
                     </label>
                     <input
                       type="text"
@@ -637,7 +667,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                      <span>Hora Embarque</span>
+                      <span>Horário de Saída</span>
                     </label>
                     <input
                       type="time"

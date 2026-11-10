@@ -328,7 +328,7 @@ export const PatientFormModal: React.FC<PatientFormModalProps> = ({
               </div>
 
               <div className="md:col-span-2">
-                <label className="block font-semibold text-slate-700 mb-1">Endereço de Embarque do Paciente (Se diferente)</label>
+                <label className="block font-semibold text-slate-700 mb-1">Local de Embarque (Padrão para Agendamentos)</label>
                 <input
                   type="text"
                   placeholder="Ex: Ponto central, UBS Central ou mesmo endereço residencial"

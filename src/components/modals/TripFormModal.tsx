@@ -31,10 +31,10 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
     originCity: 'Município de Origem',
     destinationCity: 'Campinas - SP',
     departureLocation: 'Garagem Municipal da Saúde (Av. da Saúde, 250)',
-    vehicleId: '',
-    driverId: '',
-    driverName: '',
-    driverPhone: '',
+    vehicleId: undefined,
+    driverId: undefined,
+    driverName: undefined,
+    driverPhone: undefined,
     status: 'scheduled',
     destinationIds: [],
     passengers: [],
@@ -171,16 +171,10 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
         passengers: ensurePassengerArray(trip.passengers),
       });
     } else {
-      const defaultVehicle = vehicles.find((v) => v.status === 'available') || vehicles[0];
-      const defaultDriver = drivers.find((d) => d.status === 'active') || drivers[0];
       const initialDate = new Date().toISOString().slice(0, 10);
       setFormData((prev) => ({
         ...prev,
         code: generateTripCode(initialDate, Math.floor(Math.random() * 90) + 10),
-        vehicleId: defaultVehicle?.id || '',
-        driverId: defaultDriver?.id || '',
-        driverName: defaultDriver?.name || '',
-        driverPhone: defaultDriver?.phone || '',
         destinationIds: (destinations || []).slice(0, 2).map((d) => d.id),
       }));
     }
@@ -221,9 +215,6 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
     if (!formData.departureTime) errs.departureTime = 'Horário de saída é obrigatório';
     if (!formData.destinationCity?.trim()) errs.destinationCity = 'Cidade de destino é obrigatória';
     if (!formData.departureLocation?.trim()) errs.departureLocation = 'Local de embarque é obrigatório';
-    if (!formData.vehicleId) errs.vehicleId = 'Selecione um veículo da frota';
-    if (!formData.driverId) errs.driverName = 'Selecione o motorista designado';
-    if (!formData.driverName?.trim()) errs.driverName = 'Nome do motorista é obrigatório';
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -257,9 +248,9 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
       destinationCity: formData.destinationCity!.trim(),
       destinationHospital: destHospitalName,
       departureLocation: formData.departureLocation!.trim(),
-      vehicleId: formData.vehicleId!,
+      vehicleId: formData.vehicleId,
       driverId: formData.driverId,
-      driverName: formData.driverName!.trim(),
+      driverName: formData.driverName?.trim(),
       driverPhone: formData.driverPhone || '',
       status: trip?.status || 'scheduled',
       destinationIds: formData.destinationIds || [],
@@ -498,8 +489,17 @@ export const TripFormModal: React.FC<TripFormModalProps> = ({
           <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/60">
             <h4 className="font-bold text-slate-800 text-sm mb-3 flex items-center gap-1.5 border-b border-slate-200 pb-2">
               <Bus className="w-4 h-4 text-sky-600" />
-              3. Veículo da Frota e Motorista (Controle de Lotação)
+              3. Veículo e Motorista (Opcional no Agendamento)
             </h4>
+
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-[11px] text-blue-800 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <p>
+                <strong>Dica:</strong> Você pode deixar o veículo e o motorista em branco agora. 
+                Eles podem ser definidos no final do dia ao "Fechar o Romaneio" da viagem, 
+                permitindo maior flexibilidade na distribuição dos passageiros.
+              </p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
