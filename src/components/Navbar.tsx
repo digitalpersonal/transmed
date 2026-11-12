@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { MunicipalConfig } from '../types';
 
-export type ActiveTab = 'dashboard' | 'trips' | 'consolidation' | 'bookings' | 'patients' | 'vehicles' | 'drivers' | 'destinations' | 'boarding' | 'reports' | 'bpa' | 'backups';
+export type ActiveTab = 'dashboard' | 'trips' | 'patients' | 'vehicles' | 'drivers' | 'destinations' | 'boarding' | 'reports' | 'bpa' | 'backups';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -80,9 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const tabs = [
     { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
-    { id: 'trips', label: 'Viagens & Lotação', icon: Bus },
-    { id: 'consolidation', label: 'Logística / Consolidação', icon: ArrowRightLeft },
-    { id: 'bookings', label: 'Agendamentos & Vagas', icon: Ticket },
+    { id: 'trips', label: 'Viagens & Logística', icon: Bus },
     { id: 'patients', label: 'Pacientes & Acomp.', icon: Users },
     { id: 'vehicles', label: 'Frota de Veículos', icon: Truck },
     { id: 'drivers', label: 'Motoristas', icon: UserCircle2 },

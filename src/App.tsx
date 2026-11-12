@@ -2011,6 +2011,10 @@ export default function App() {
               setPreselectedPatientId(undefined);
               setIsBookingModalOpen(true);
             }}
+            onEditTrip={(trip) => {
+              setEditingTrip(trip);
+              setIsTripModalOpen(true);
+            }}
           />
         )}
 

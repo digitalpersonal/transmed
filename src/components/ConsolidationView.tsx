@@ -14,7 +14,8 @@ import {
   ChevronRight,
   MoreVertical,
   Printer,
-  Ticket
+  Ticket,
+  Edit3
 } from 'lucide-react';
 import { Trip, Vehicle, TripPassenger, ensurePassengerArray, Driver } from '../types';
 import { formatDateBR, formatPlate } from '../utils/formatters';
@@ -29,6 +30,7 @@ interface ConsolidationViewProps {
   onDispatchTrip: (tripId: string, vehicleId: string, driverId: string, driverName: string, driverPhone: string) => void;
   onPrintManifest: (trip: Trip) => void;
   onOpenBookingModal: (tripId: string) => void;
+  onEditTrip: (trip: Trip) => void;
 }
 
 export const ConsolidationView: React.FC<ConsolidationViewProps> = ({
@@ -39,6 +41,7 @@ export const ConsolidationView: React.FC<ConsolidationViewProps> = ({
   onDispatchTrip,
   onPrintManifest,
   onOpenBookingModal,
+  onEditTrip,
 }) => {
   const today = new Date().toISOString().slice(0, 10);
   const tomorrowObj = new Date();
@@ -209,21 +212,30 @@ export const ConsolidationView: React.FC<ConsolidationViewProps> = ({
                         </span>
                       </div>
                     </div>
-                    {!trip.vehicleId ? (
+                    <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => setDispatchTrip(trip)}
-                        className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-colors cursor-pointer"
+                        onClick={() => onEditTrip(trip)}
+                        className="p-1.5 bg-white border border-slate-200 hover:border-slate-400 text-slate-700 rounded-lg transition-colors shadow-2xs cursor-pointer"
+                        title="Editar detalhes da viagem"
                       >
-                        Escalar Carro
+                        <Edit3 className="w-3.5 h-3.5" />
                       </button>
-                    ) : (
-                      <button
-                        onClick={() => setDispatchTrip(trip)}
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-300 transition-colors cursor-pointer"
-                      >
-                        Alterar Carro
-                      </button>
-                    )}
+                      {!trip.vehicleId ? (
+                        <button
+                          onClick={() => setDispatchTrip(trip)}
+                          className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-colors cursor-pointer"
+                        >
+                          Escalar Carro
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setDispatchTrip(trip)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-300 transition-colors cursor-pointer"
+                        >
+                          Alterar Carro
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Vehicle Info */}
